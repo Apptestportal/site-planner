@@ -2,25 +2,25 @@ import { useState, useMemo, useRef } from "react";
 
 // ── User list with access codes ───────────────────────────────────────────────
 // Format: { name, email, code, role: "admin" | "user" }
-const STORAGE_KEY = "siteplanner_users_v1";
+const STORAGE_KEY = "siteplanner_users_v2";
 
 const DEFAULT_USERS = [
   { name: "Craig",        email: "craig@topcon.com",                     code: "1234", role: "admin" },
   { name: "Allan",        email: "allan@velcorp.com",                    code: "5678", role: "admin" },
   { name: "Admin",        email: "apptestportal@outlook.com",            code: "9012", role: "admin" },
   { name: "Sadmin",       email: "sadmin@apptestportal.onmicrosoft.com", code: "3456", role: "admin" },
-  { name: "Adam Clarke",  email: "adam.clarke@siteplanner.com",          code: "1001", role: "user" },
-  { name: "Ben Torres",   email: "ben.torres@siteplanner.com",           code: "1002", role: "user" },
-  { name: "Chris Ray",    email: "chris.ray@siteplanner.com",            code: "1003", role: "user" },
-  { name: "Dan Smith",    email: "dan.smith@siteplanner.com",            code: "1004", role: "user" },
-  { name: "Ed Walsh",     email: "ed.walsh@siteplanner.com",             code: "1005", role: "user" },
-  { name: "Frank Li",     email: "frank.li@siteplanner.com",             code: "1006", role: "user" },
-  { name: "Gary Hunt",    email: "gary.hunt@siteplanner.com",            code: "2001", role: "user" },
-  { name: "Harry Fox",    email: "harry.fox@siteplanner.com",            code: "2002", role: "user" },
-  { name: "Ivan Marsh",   email: "ivan.marsh@siteplanner.com",           code: "2003", role: "user" },
-  { name: "Jake Owen",    email: "jake.owen@siteplanner.com",            code: "2004", role: "user" },
-  { name: "Kyle Park",    email: "kyle.park@siteplanner.com",            code: "2005", role: "user" },
-  { name: "Leo James",    email: "leo.james@siteplanner.com",            code: "2006", role: "user" },
+  { name: "Adam Clarke",  email: "adam.c@topcon.com.au",                 code: "1001", role: "user" },
+  { name: "Ben Torres",   email: "ben.t@topcon.com.au",                  code: "1002", role: "user" },
+  { name: "Chris Ray",    email: "chris.r@topcon.com.au",                code: "1003", role: "user" },
+  { name: "Dan Smith",    email: "dan.s@topcon.com.au",                  code: "1004", role: "user" },
+  { name: "Ed Walsh",     email: "ed.w@topcon.com.au",                   code: "1005", role: "user" },
+  { name: "Frank Li",     email: "frank.l@topcon.com.au",                code: "1006", role: "user" },
+  { name: "Gary Hunt",    email: "gary.h@topcon.com.au",                 code: "2001", role: "user" },
+  { name: "Harry Fox",    email: "harry.f@topcon.com.au",                code: "2002", role: "user" },
+  { name: "Ivan Marsh",   email: "ivan.m@topcon.com.au",                 code: "2003", role: "user" },
+  { name: "Jake Owen",    email: "jake.o@topcon.com.au",                 code: "2004", role: "user" },
+  { name: "Kyle Park",    email: "kyle.p@topcon.com.au",                 code: "2005", role: "user" },
+  { name: "Leo James",    email: "leo.j@topcon.com.au",                  code: "2006", role: "user" },
 ];
 
 function loadUsers() {
@@ -173,7 +173,7 @@ function jobDates(job) {
 }
 function jobOnDate(job, dk) { return jobDates(job).includes(dk); }
 
-const emptyForm = { crew:"Topcon Builders", location:"", startDate:"", endDate:"", workers:[], notes:"", invoiced:false, poFile:null, poFileName:"", photos:[] };
+const emptyForm = { crew:"Topcon Builders", location:"", startDate:"", endDate:"", workers:[], notes:"", invoiced:false, poFile:null, poFileName:"", photos:[], documentLink:"", documentName:"" };
 
 
 function UserManagement({ currentUser }) {
@@ -334,7 +334,7 @@ function SitePlanner({ currentUser, onLogout }) {
     setEditId(null); setShowModal(true); setDayPopup(null);
   };
   const openEdit = (job) => {
-    setForm({ crew:job.crew, location:job.location, startDate:job.startDate, endDate:job.endDate, workers:[...job.workers], notes:job.notes, invoiced:job.invoiced||false, poFile:job.poFile||null, poFileName:job.poFileName||"", photos:job.photos||[] });
+    setForm({ crew:job.crew, location:job.location, startDate:job.startDate, endDate:job.endDate, workers:[...job.workers], notes:job.notes, invoiced:job.invoiced||false, poFile:job.poFile||null, poFileName:job.poFileName||"", photos:job.photos||[], documentLink:job.documentLink||"", documentName:job.documentName||"" });
     setEditId(job.id); setShowModal(true);
   };
   const saveJob = () => {
@@ -403,7 +403,13 @@ function SitePlanner({ currentUser, onLogout }) {
               <div style={{fontSize:24,fontWeight:800,letterSpacing:-0.5}}>Site Planner</div>
               <div style={{fontSize:11,color:"#6B9E7A",letterSpacing:2,marginTop:2}}>CONSTRUCTION SCHEDULER</div>
             </div>
-            <button onClick={()=>openAdd()} style={{background:"#22C55E",color:"#fff",border:"none",padding:"10px 20px",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer"}}>+ New Job</button>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <button onClick={()=>openAdd()} style={{background:"#22C55E",color:"#fff",border:"none",padding:"10px 20px",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer"}}>+ New Job</button>
+            </div>
+          </div>
+          <div style={{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:10,marginTop:8}}>
+            <span style={{fontSize:13,fontWeight:600,color:"#374151"}}>👷‍♂️ {currentUser.name}</span>
+            <button onClick={onLogout} style={{background:"#fff",color:"#DC2626",border:"1.5px solid #FCA5A5",padding:"6px 12px",borderRadius:6,fontSize:12,fontWeight:700,cursor:"pointer"}}>Log out</button>
           </div>
           <div style={{display:"flex",gap:2,marginTop:16,flexWrap:"wrap"}}>
             {[["schedule","📅  Weekly"],["month","🗓️  Month"],["jobs","📊  Job List"],["contacts","📋  Contacts"],["leave","🏖️  Leave"]].map(([id,lbl])=>(
@@ -696,7 +702,7 @@ function SitePlanner({ currentUser, onLogout }) {
                       </div>
                     </div>
                     <div style={{display:"flex",alignItems:"center",gap:10}}>
-                      <div onClick={e=>{e.stopPropagation();toggleWorkerActive(crew,idx);}} style={{display:"flex",alignItems:"center",gap:6,cursor:"pointer"}}>
+                      <div onClick={e=>{e.stopPropagation();if(currentUser.role==="admin")toggleWorkerActive(crew,idx);}} title={currentUser.role!=="admin"?"Admin only":""} style={{display:"flex",alignItems:"center",gap:6,cursor:currentUser.role==="admin"?"pointer":"not-allowed",opacity:currentUser.role==="admin"?1:0.6}}>
                         <div style={{width:42,height:22,borderRadius:11,background:worker.active===false?"#D1D5DB":"#22C55E",position:"relative",border:`2px solid ${worker.active===false?"#9CA3AF":"#16A34A"}`}}>
                           <div style={{width:14,height:14,borderRadius:"50%",background:"#fff",position:"absolute",top:2,left:worker.active===false?2:20,transition:"left 0.2s"}}/>
                         </div>
@@ -820,7 +826,7 @@ function SitePlanner({ currentUser, onLogout }) {
                     <div style={{padding:"8px 12px",background:"#fff",display:"flex",gap:8}}>
                       <button onClick={()=>{setThreadModal(job);setDayPopup(null);}} style={{flex:1,padding:"7px",border:"1.5px solid #6366F1",borderRadius:8,background:"#EEF2FF",color:"#4338CA",fontSize:12,fontWeight:700,cursor:"pointer"}}>💬 Thread</button>
                       <button onClick={()=>{openEdit(job);setDayPopup(null);}} style={{flex:1,padding:"7px",border:"1.5px solid #D1C9BE",borderRadius:8,background:"#fff",color:"#374151",fontSize:12,fontWeight:600,cursor:"pointer"}}>Edit</button>
-                      <button onClick={()=>deleteJob(job.id)} style={{padding:"7px 12px",border:"1.5px solid #FCA5A5",borderRadius:8,background:"#FEF2F2",color:"#DC2626",fontSize:12,cursor:"pointer"}}>Delete</button>
+                      {currentUser.role==="admin"&&<button onClick={()=>deleteJob(job.id)} style={{padding:"7px 12px",border:"1.5px solid #FCA5A5",borderRadius:8,background:"#FEF2F2",color:"#DC2626",fontSize:12,cursor:"pointer"}}>Delete</button>}
                     </div>
                   </div>
                 );
@@ -885,6 +891,26 @@ function SitePlanner({ currentUser, onLogout }) {
                 </div>
               </div>
               <div>
+                <label style={{fontSize:10,fontWeight:700,color:"#9CA3AF",letterSpacing:1,display:"block",marginBottom:7}}>DOCUMENT LINK {currentUser.role!=="admin"&&<span style={{color:"#9CA3AF",fontWeight:500,letterSpacing:0}}>(admin only)</span>}</label>
+                {currentUser.role==="admin" ? (
+                  <div style={{display:"flex",gap:6}}>
+                    <input value={form.documentName} onChange={e=>setForm(p=>({...p,documentName:e.target.value}))} placeholder="Document name"
+                      style={{flex:"0 0 35%",border:"1.5px solid #E5E0D8",borderRadius:8,padding:"9px 12px",fontSize:13,boxSizing:"border-box",outline:"none"}}/>
+                    <input value={form.documentLink} onChange={e=>setForm(p=>({...p,documentLink:e.target.value}))} placeholder="https://... (SharePoint, Dropbox, Google)"
+                      style={{flex:1,border:"1.5px solid #E5E0D8",borderRadius:8,padding:"9px 12px",fontSize:13,boxSizing:"border-box",outline:"none"}}/>
+                  </div>
+                ) : (
+                  form.documentLink ? (
+                    <a href={form.documentLink} target="_blank" rel="noopener noreferrer" style={{display:"inline-flex",alignItems:"center",gap:8,padding:"9px 12px",border:"1.5px solid #E5E0D8",borderRadius:8,fontSize:13,color:"#2563EB",textDecoration:"none",background:"#FAFAF8"}}>
+                      <span>{(()=>{const u=form.documentLink.toLowerCase();if(u.includes("sharepoint")||u.includes("office.com"))return"📊";if(u.includes("dropbox"))return"📦";if(u.includes("google")||u.includes("docs.google")||u.includes("drive.google"))return"🟢";return"🔗";})()}</span>
+                      <span style={{fontWeight:600}}>{form.documentName||"Open document"}</span>
+                    </a>
+                  ) : (
+                    <div style={{fontSize:12,color:"#9CA3AF",fontStyle:"italic",padding:"9px 0"}}>No document linked</div>
+                  )
+                )}
+              </div>
+              <div>
                 <label style={{fontSize:10,fontWeight:700,color:"#9CA3AF",letterSpacing:1,display:"block",marginBottom:7}}>NOTES</label>
                 <input value={form.notes} onChange={e=>setForm(p=>({...p,notes:e.target.value}))} placeholder="e.g. PPE required, early start..."
                   style={{width:"100%",border:"1.5px solid #E5E0D8",borderRadius:8,padding:"9px 12px",fontSize:13,boxSizing:"border-box",outline:"none"}}
@@ -903,7 +929,7 @@ function SitePlanner({ currentUser, onLogout }) {
               )}
               <div style={{display:"flex",gap:8,paddingTop:4}}>
                 <button onClick={()=>setShowModal(false)} style={{flex:1,padding:"10px",border:"1.5px solid #E5E0D8",borderRadius:8,background:"#fff",color:"#9CA3AF",fontSize:13,fontWeight:600,cursor:"pointer"}}>Cancel</button>
-                {editId&&<button onClick={()=>deleteJob(editId)} style={{padding:"10px 14px",border:"1.5px solid #FCA5A5",borderRadius:8,background:"#FEF2F2",color:"#DC2626",fontSize:13,fontWeight:600,cursor:"pointer"}}>Delete</button>}
+                {editId&&currentUser.role==="admin"&&<button onClick={()=>deleteJob(editId)} style={{padding:"10px 14px",border:"1.5px solid #FCA5A5",borderRadius:8,background:"#FEF2F2",color:"#DC2626",fontSize:13,fontWeight:600,cursor:"pointer"}}>Delete</button>}
                 <button onClick={saveJob} style={{flex:1,padding:"10px",border:"none",borderRadius:8,background:C(form.crew).color,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>{editId?"Save Changes":"Add Job"}</button>
               </div>
             </div>
