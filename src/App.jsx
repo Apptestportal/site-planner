@@ -1,134 +1,100 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useRef } from "react";
 
-// ── Default approved users (bootstrap list) ─────────────────────────────────
-const DEFAULT_USERS = {
-  "apptestportal@outlook.com":            "admin",
-  "allan@velcorp.com":                    "admin",
-  "craig@topcon.com":                     "admin",
-  "sadmin@apptestportal.onmicrosoft.com": "admin",
-};
+// ── User list with access codes ───────────────────────────────────────────────
+// Format: { name, email, code, role: "admin" | "user" }
+const STORAGE_KEY = "siteplanner_users_v1";
 
-// ── Storage key for access list ──────────────────────────────────────────────
-const ACCESS_KEY = "siteplannerAccess_v1";
+const DEFAULT_USERS = [
+  { name: "Craig",  email: "craig@topcon.com",                     code: "1234", role: "admin" },
+  { name: "Allan",  email: "allan@velcorp.com",                    code: "5678", role: "admin" },
+  { name: "Admin",  email: "apptestportal@outlook.com",            code: "9012", role: "admin" },
+  { name: "Sadmin", email: "sadmin@apptestportal.onmicrosoft.com", code: "3456", role: "admin" },
+];
 
-function loadAccessList() {
+function loadUsers() {
   try {
-    const stored = localStorage.getItem(ACCESS_KEY);
-    if (stored) return JSON.parse(stored);
+    const s = localStorage.getItem(STORAGE_KEY);
+    if (s) return JSON.parse(s);
   } catch(e) {}
   return DEFAULT_USERS;
 }
 
-function saveAccessList(list) {
-  try {
-    localStorage.setItem(ACCESS_KEY, JSON.stringify(list));
-  } catch(e) {}
+function saveUsers(users) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(users)); } catch(e) {}
 }
 
-// ── Auth hook ────────────────────────────────────────────────────────────────
-function useAuth() {
-  const [user, setUser]       = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [rawAuth, setRawAuth] = useState(null);
+// ── Login Screen ──────────────────────────────────────────────────────────────
+function LoginScreen({ onLogin }) {
+  const [email, setEmail]   = useState("");
+  const [code, setCode]     = useState("");
+  const [error, setError]   = useState("");
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    fetch("/.auth/me")
-      .then(r => r.json())
-      .then(data => {
-        setRawAuth(data);
-        const principal = data.clientPrincipal;
-        if (principal) {
-          // Azure SWA Simple mode returns email in userDetails
-          // Try multiple possible fields
-          const claims = principal.claims || [];
-          const emailClaim = claims.find(c =>
-            c.typ === "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress" ||
-            c.typ === "preferred_username" ||
-            c.typ === "email" ||
-            c.typ === "upn"
-          );
-          const email = (
-            emailClaim?.val ||
-            principal.userDetails ||
-            ""
-          ).toLowerCase().trim();
+  const handleLogin = () => {
+    setError("");
+    setLoading(true);
+    const users = loadUsers();
+    const user = users.find(u =>
+      u.email.toLowerCase() === email.toLowerCase().trim() &&
+      u.code === code.trim()
+    );
+    setTimeout(() => {
+      setLoading(false);
+      if (user) {
+        onLogin(user);
+      } else {
+        setError("Invalid email or access code. Contact your administrator.");
+        setCode("");
+      }
+    }, 500);
+  };
 
-          const access = loadAccessList();
-          const role   = access[email] || null;
-          setUser({ email, role, name: email, principal });
-        }
-        setLoading(false);
-      })
-      .catch(() => {
-        setLoading(false);
-      });
-  }, []);
-
-  return { user, loading, rawAuth };
-}
-
-// ── Login screen ──────────────────────────────────────────────────────────────
-function LoginScreen() {
   return (
     <div style={{minHeight:"100vh",background:"#111827",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui,sans-serif",padding:20}}>
-      <div style={{background:"#1F2937",borderRadius:20,padding:"48px 40px",width:"100%",maxWidth:420,boxShadow:"0 32px 80px rgba(0,0,0,0.5)",textAlign:"center"}}>
-        <div style={{marginBottom:32}}>
-          <div style={{fontSize:48,marginBottom:16}}>🏗️</div>
-          <div style={{fontSize:28,fontWeight:800,color:"#F9F7F4",letterSpacing:-0.5,marginBottom:8}}>Site Planner</div>
-          <div style={{fontSize:12,color:"#6B9E7A",letterSpacing:3,marginBottom:4}}>CONSTRUCTION SCHEDULER</div>
-          <div style={{fontSize:13,color:"#6B7280",marginTop:16,lineHeight:1.6}}>Topcon Builders & NQ Stripouts</div>
+      <div style={{background:"#1F2937",borderRadius:20,padding:"48px 40px",width:"100%",maxWidth:420,boxShadow:"0 32px 80px rgba(0,0,0,0.5)"}}>
+        <div style={{textAlign:"center",marginBottom:32}}>
+          <div style={{fontSize:48,marginBottom:12}}>🏗️</div>
+          <div style={{fontSize:26,fontWeight:800,color:"#F9F7F4",letterSpacing:-0.5}}>Site Planner</div>
+          <div style={{fontSize:11,color:"#6B9E7A",letterSpacing:3,marginTop:4}}>CONSTRUCTION SCHEDULER</div>
+          <div style={{fontSize:12,color:"#6B7280",marginTop:8}}>Topcon Builders & NQ Stripouts</div>
         </div>
-        <a href="/.auth/login/aad?post_login_redirect_uri=/"
-          style={{display:"flex",alignItems:"center",justifyContent:"center",gap:12,background:"#2563EB",color:"#fff",textDecoration:"none",padding:"14px 24px",borderRadius:12,fontSize:15,fontWeight:700,marginBottom:16}}>
-          <span style={{fontSize:20}}>⊞</span> Sign in with Microsoft
-        </a>
-        <div style={{fontSize:12,color:"#4B5563",marginTop:24,lineHeight:1.6}}>
-          Access restricted to authorised personnel only.<br/>
-          Contact your administrator to request access.
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Access denied screen ──────────────────────────────────────────────────────
-function AccessDenied({ user, rawAuth }) {
-  const [showDebug, setShowDebug] = useState(false);
-  return (
-    <div style={{minHeight:"100vh",background:"#111827",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui,sans-serif",padding:20}}>
-      <div style={{background:"#1F2937",borderRadius:20,padding:"48px 40px",width:"100%",maxWidth:480,boxShadow:"0 32px 80px rgba(0,0,0,0.5)",textAlign:"center"}}>
-        <div style={{fontSize:48,marginBottom:16}}>🔒</div>
-        <div style={{fontSize:22,fontWeight:800,color:"#F9F7F4",marginBottom:12}}>Access Denied</div>
-        <div style={{fontSize:14,color:"#9CA3AF",marginBottom:8,lineHeight:1.6}}>
-          <strong style={{color:"#F9F7F4"}}>{user?.email || "Unknown"}</strong><br/>is not authorised to access this app.
-        </div>
-        <div style={{fontSize:13,color:"#6B7280",marginBottom:24,lineHeight:1.6}}>
-          Please contact your administrator to request access.
-        </div>
-        <a href="/.auth/logout" style={{display:"block",background:"#374151",color:"#9CA3AF",textDecoration:"none",padding:"12px 24px",borderRadius:10,fontSize:14,fontWeight:600,marginBottom:12}}>
-          Sign out & try another account
-        </a>
-        <button onClick={()=>setShowDebug(p=>!p)} style={{background:"none",border:"1px solid #374151",color:"#4B5563",padding:"8px 16px",borderRadius:8,fontSize:12,cursor:"pointer"}}>
-          {showDebug?"Hide":"Show"} debug info
-        </button>
-        {showDebug&&(
-          <div style={{marginTop:12,background:"#111827",borderRadius:10,padding:12,textAlign:"left",fontSize:11,color:"#6B7280",wordBreak:"break-all"}}>
-            <div style={{marginBottom:6,color:"#9CA3AF",fontWeight:700}}>Auth response:</div>
-            <pre style={{whiteSpace:"pre-wrap",margin:0}}>{JSON.stringify(rawAuth,null,2)}</pre>
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <div>
+            <label style={{fontSize:11,fontWeight:700,color:"#9CA3AF",letterSpacing:1,display:"block",marginBottom:6}}>EMAIL ADDRESS</label>
+            <input
+              type="email"
+              value={email}
+              onChange={e=>setEmail(e.target.value)}
+              placeholder="your@email.com"
+              onKeyDown={e=>e.key==="Enter"&&handleLogin()}
+              style={{width:"100%",padding:"12px 14px",borderRadius:10,border:"1.5px solid #374151",background:"#111827",color:"#F9F7F4",fontSize:14,outline:"none",boxSizing:"border-box"}}
+              onFocus={e=>e.target.style.borderColor="#2563EB"}
+              onBlur={e=>e.target.style.borderColor="#374151"}
+            />
           </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Loading screen ─────────────────────────────────────────────────────────────
-function LoadingScreen() {
-  return (
-    <div style={{minHeight:"100vh",background:"#111827",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui,sans-serif"}}>
-      <div style={{textAlign:"center"}}>
-        <div style={{fontSize:48,marginBottom:16}}>🏗️</div>
-        <div style={{fontSize:16,color:"#6B7280"}}>Loading...</div>
+          <div>
+            <label style={{fontSize:11,fontWeight:700,color:"#9CA3AF",letterSpacing:1,display:"block",marginBottom:6}}>ACCESS CODE</label>
+            <input
+              type="password"
+              value={code}
+              onChange={e=>setCode(e.target.value)}
+              placeholder="Enter your code"
+              onKeyDown={e=>e.key==="Enter"&&handleLogin()}
+              style={{width:"100%",padding:"12px 14px",borderRadius:10,border:"1.5px solid #374151",background:"#111827",color:"#F9F7F4",fontSize:14,outline:"none",boxSizing:"border-box"}}
+              onFocus={e=>e.target.style.borderColor="#2563EB"}
+              onBlur={e=>e.target.style.borderColor="#374151"}
+            />
+          </div>
+          {error && <div style={{background:"#450A0A",border:"1px solid #7F1D1D",borderRadius:8,padding:"10px 14px",fontSize:13,color:"#FCA5A5"}}>{error}</div>}
+          <button onClick={handleLogin} disabled={loading}
+            style={{padding:"13px",border:"none",borderRadius:10,background:"#2563EB",color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer",marginTop:4,opacity:loading?0.7:1}}>
+            {loading ? "Signing in..." : "Sign In"}
+          </button>
+        </div>
+        <div style={{fontSize:11,color:"#4B5563",marginTop:24,textAlign:"center",lineHeight:1.6}}>
+          Access restricted to authorised personnel only.<br/>
+          Contact your administrator for an access code.
+        </div>
       </div>
     </div>
   );
@@ -197,11 +163,77 @@ function jobOnDate(job, dk) { return jobDates(job).includes(dk); }
 
 const emptyForm = { crew:"Topcon Builders", location:"", startDate:"", endDate:"", workers:[], notes:"", invoiced:false, poFile:null, poFileName:"", photos:[] };
 
-function SitePlanner({ userEmail, userRole }) {
-  const isAdminUser = userRole === "admin";
-  const [accessList, setAccessList] = useState(loadAccessList);
-  const [newAccessEmail, setNewAccessEmail] = useState("");
-  const [newAccessRole, setNewAccessRole] = useState("user");
+
+function UserManagement({ currentUser }) {
+  const [users, setUsers]   = useState(loadUsers);
+  const [newName, setNewName]   = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newCode, setNewCode]   = useState("");
+  const [newRole, setNewRole]   = useState("user");
+
+  const addUser = () => {
+    if(!newName.trim()||!newEmail.trim()||!newCode.trim()){alert("Fill in all fields.");return;}
+    if(users.find(u=>u.email.toLowerCase()===newEmail.toLowerCase().trim())){alert("Email already exists.");return;}
+    const updated=[...users,{name:newName.trim(),email:newEmail.toLowerCase().trim(),code:newCode.trim(),role:newRole}];
+    setUsers(updated);saveUsers(updated);
+    setNewName("");setNewEmail("");setNewCode("");setNewRole("user");
+    alert("User added successfully.");
+  };
+
+  const toggleRole = (i) => {
+    const updated=users.map((u,j)=>j===i?{...u,role:u.role==="admin"?"user":"admin"}:u);
+    setUsers(updated);saveUsers(updated);
+  };
+
+  const removeUser = (i) => {
+    if(!window.confirm("Remove "+users[i].name+"?"))return;
+    const updated=users.filter((_,j)=>j!==i);
+    setUsers(updated);saveUsers(updated);
+  };
+
+  return(
+    <div style={{background:"#1F2937",borderRadius:14,padding:"18px 20px",marginBottom:20,border:"2px solid #374151"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+        <span style={{fontSize:18}}>🔐</span>
+        <div style={{fontSize:14,fontWeight:800,color:"#F9F7F4"}}>App Access Management</div>
+        <span style={{fontSize:10,background:"#374151",color:"#9CA3AF",padding:"2px 8px",borderRadius:6,fontWeight:600}}>ADMIN ONLY</span>
+      </div>
+      {users.map((u,i)=>(
+        <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"#111827",borderRadius:10,marginBottom:6}}>
+          <div style={{flex:1}}>
+            <div style={{fontSize:13,fontWeight:700,color:"#F9F7F4"}}>{u.name} <span style={{fontSize:11,color:"#6B7280"}}>— {u.email}</span></div>
+            <div style={{fontSize:11,color:u.role==="admin"?"#22C55E":"#6B9E7A",marginTop:2}}>{u.role==="admin"?"👑 Admin":"👤 User"} · Code: {u.code}</div>
+          </div>
+          <button onClick={()=>toggleRole(i)} style={{padding:"4px 10px",border:"1px solid #374151",borderRadius:6,background:"#1F2937",color:"#9CA3AF",fontSize:11,cursor:"pointer"}}>
+            Make {u.role==="admin"?"User":"Admin"}
+          </button>
+          {u.email!==currentUser.email&&(
+            <button onClick={()=>removeUser(i)} style={{padding:"4px 10px",border:"1px solid #7F1D1D",borderRadius:6,background:"#450A0A",color:"#FCA5A5",fontSize:11,cursor:"pointer"}}>Remove</button>
+          )}
+        </div>
+      ))}
+      <div style={{borderTop:"1px solid #374151",paddingTop:12,marginTop:4}}>
+        <div style={{fontSize:11,fontWeight:700,color:"#6B7280",letterSpacing:1,marginBottom:8}}>ADD NEW USER</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+          <input value={newName} onChange={e=>setNewName(e.target.value)} placeholder="Full name"
+            style={{border:"1.5px solid #374151",borderRadius:7,padding:"8px 10px",fontSize:13,background:"#111827",color:"#F9F7F4",outline:"none",boxSizing:"border-box"}}/>
+          <input value={newEmail} onChange={e=>setNewEmail(e.target.value)} placeholder="email@example.com"
+            style={{border:"1.5px solid #374151",borderRadius:7,padding:"8px 10px",fontSize:13,background:"#111827",color:"#F9F7F4",outline:"none",boxSizing:"border-box"}}/>
+          <input value={newCode} onChange={e=>setNewCode(e.target.value)} placeholder="Access code e.g. 7890"
+            style={{border:"1.5px solid #374151",borderRadius:7,padding:"8px 10px",fontSize:13,background:"#111827",color:"#F9F7F4",outline:"none",boxSizing:"border-box"}}/>
+          <select value={newRole} onChange={e=>setNewRole(e.target.value)}
+            style={{border:"1.5px solid #374151",borderRadius:7,padding:"8px 10px",fontSize:13,background:"#111827",color:"#F9F7F4",outline:"none"}}>
+            <option value="user">👤 User</option>
+            <option value="admin">👑 Admin</option>
+          </select>
+        </div>
+        <button onClick={addUser} style={{width:"100%",padding:"9px",border:"none",borderRadius:8,background:"#2563EB",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>+ Add User</button>
+      </div>
+    </div>
+  );
+}
+
+function SitePlanner({ currentUser, onLogout }) {
   const [jobs, setJobs]     = useState(buildInitJobs);
   const [nextId, setNextId] = useState(9);
   const [workers, setWorkers] = useState(initWorkers);
@@ -620,62 +652,7 @@ function SitePlanner({ userEmail, userRole }) {
         {/* ── CONTACTS TAB ── */}
         {tab==="contacts" && (
           <div>
-            {/* ── APP ACCESS MANAGEMENT (Admin only) ── */}
-            {isAdminUser && (
-              <div style={{background:"#1F2937",borderRadius:14,padding:"20px 22px",marginBottom:20,border:"2px solid #374151"}}>
-                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
-                  <span style={{fontSize:20}}>🔐</span>
-                  <div style={{fontSize:15,fontWeight:800,color:"#F9F7F4"}}>App Access Management</div>
-                  <span style={{fontSize:11,background:"#374151",color:"#9CA3AF",padding:"2px 8px",borderRadius:6,fontWeight:600}}>ADMIN ONLY</span>
-                </div>
-                <div style={{marginBottom:16}}>
-                  {Object.entries(accessList).map(([email,role])=>(
-                    <div key={email} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:"#111827",borderRadius:10,marginBottom:6}}>
-                      <div style={{flex:1}}>
-                        <div style={{fontSize:13,fontWeight:600,color:"#F9F7F4"}}>{email}</div>
-                        <div style={{fontSize:11,color:role==="admin"?"#22C55E":"#6B9E7A",fontWeight:700,marginTop:1}}>{role==="admin"?"👑 Admin":"👤 User"}</div>
-                      </div>
-                      <button onClick={()=>{const nr=role==="admin"?"user":"admin";const u={...accessList,[email]:nr};setAccessList(u);saveAccessList(u);}}
-                        style={{padding:"5px 10px",border:"1px solid #374151",borderRadius:7,background:"#1F2937",color:"#9CA3AF",fontSize:11,fontWeight:600,cursor:"pointer"}}>
-                        Make {role==="admin"?"User":"Admin"}
-                      </button>
-                      {email!==userEmail&&(
-                        <button onClick={()=>{if(!window.confirm("Remove access for "+email+"?"))return;const u={...accessList};delete u[email];setAccessList(u);saveAccessList(u);}}
-                          style={{padding:"5px 10px",border:"1px solid #7F1D1D",borderRadius:7,background:"#450A0A",color:"#FCA5A5",fontSize:11,fontWeight:600,cursor:"pointer"}}>
-                          Remove
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                <div style={{borderTop:"1px solid #374151",paddingTop:14}}>
-                  <div style={{fontSize:11,fontWeight:700,color:"#6B7280",letterSpacing:1,marginBottom:10}}>ADD NEW USER</div>
-                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                    <input value={newAccessEmail} onChange={e=>setNewAccessEmail(e.target.value)} placeholder="email@example.com" type="email"
-                      style={{flex:2,minWidth:180,border:"1.5px solid #374151",borderRadius:8,padding:"9px 12px",fontSize:13,background:"#111827",color:"#F9F7F4",outline:"none",boxSizing:"border-box"}}/>
-                    <select value={newAccessRole} onChange={e=>setNewAccessRole(e.target.value)}
-                      style={{flex:1,minWidth:100,border:"1.5px solid #374151",borderRadius:8,padding:"9px 12px",fontSize:13,background:"#111827",color:"#F9F7F4",outline:"none"}}>
-                      <option value="user">👤 User</option>
-                      <option value="admin">👑 Admin</option>
-                    </select>
-                    <button onClick={()=>{
-                      const em=newAccessEmail.toLowerCase().trim();
-                      if(!em||!em.includes("@")){alert("Enter a valid email.");return;}
-                      if(accessList[em]){alert("Already has access.");return;}
-                      const u={...accessList,[em]:newAccessRole};
-                      setAccessList(u);saveAccessList(u);
-                      setNewAccessEmail("");setNewAccessRole("user");
-                      alert("Access granted to "+em+" as "+newAccessRole+".");
-                    }} style={{padding:"9px 18px",border:"none",borderRadius:8,background:"#2563EB",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>
-                      + Add
-                    </button>
-                  </div>
-                  <div style={{fontSize:11,color:"#4B5563",marginTop:8,lineHeight:1.5}}>
-                    ℹ️ User must sign in with their Microsoft account. Changes are saved to this device — for full cross-device sync, Stage 2 email notifications will be added soon.
-                  </div>
-                </div>
-              </div>
-            )}
+            {currentUser.role==="admin"&&<UserManagement currentUser={currentUser}/>}
 
             <div style={{display:"flex",gap:10,marginBottom:14}}>
               {crewKeys.map(crew=>(
@@ -1026,11 +1003,26 @@ function SitePlanner({ userEmail, userRole }) {
   );
 }
 
-// ── Root App with auth gate ───────────────────────────────────────────────────
+
+// ── Root App ──────────────────────────────────────────────────────────────────
 export default function App() {
-  const { user, loading, rawAuth } = useAuth();
-  if (loading) return <LoadingScreen />;
-  if (!user)   return <LoginScreen />;
-  if (!user.role) return <AccessDenied user={user} rawAuth={rawAuth} />;
-  return <SitePlanner userEmail={user.email} userRole={user.role} />;
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const s = sessionStorage.getItem("siteplanner_session");
+      return s ? JSON.parse(s) : null;
+    } catch(e) { return null; }
+  });
+
+  const handleLogin = (user) => {
+    sessionStorage.setItem("siteplanner_session", JSON.stringify(user));
+    setCurrentUser(user);
+  };
+
+  const handleLogout = () => {
+    sessionStorage.removeItem("siteplanner_session");
+    setCurrentUser(null);
+  };
+
+  if (!currentUser) return <LoginScreen onLogin={handleLogin} />;
+  return <SitePlanner currentUser={currentUser} onLogout={handleLogout} />;
 }
