@@ -2,9 +2,10 @@ import { useState, useMemo, useEffect, useRef } from "react";
 
 // ── Default approved users (bootstrap list) ─────────────────────────────────
 const DEFAULT_USERS = {
-  "apptestportal@outlook.com": "admin",
-  "allan@velcorp.com":          "admin",
-  "craig@topcon.com":           "admin",
+  "apptestportal@outlook.com":            "admin",
+  "allan@velcorp.com":                    "admin",
+  "craig@topcon.com":                     "admin",
+  "sadmin@apptestportal.onmicrosoft.com": "admin",
 };
 
 // ── Storage key for access list ──────────────────────────────────────────────
