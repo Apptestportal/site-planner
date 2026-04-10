@@ -1,4 +1,113 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+
+// ── Default approved users (bootstrap list) ─────────────────────────────────
+const DEFAULT_USERS = {
+  "apptestportal@outlook.com": "admin",
+  "allan@velcorp.com":          "admin",
+  "craig@topcon.com":           "admin",
+};
+
+// ── Storage key for access list ──────────────────────────────────────────────
+const ACCESS_KEY = "siteplannerAccess_v1";
+
+function loadAccessList() {
+  try {
+    const stored = localStorage.getItem(ACCESS_KEY);
+    if (stored) return JSON.parse(stored);
+  } catch(e) {}
+  return DEFAULT_USERS;
+}
+
+function saveAccessList(list) {
+  try {
+    localStorage.setItem(ACCESS_KEY, JSON.stringify(list));
+  } catch(e) {}
+}
+
+// ── Auth hook ────────────────────────────────────────────────────────────────
+function useAuth() {
+  const [user, setUser]     = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/.auth/me")
+      .then(r => r.json())
+      .then(data => {
+        const principal = data.clientPrincipal;
+        if (principal) {
+          const email = (principal.userDetails || "").toLowerCase().trim();
+          const access = loadAccessList();
+          const role   = access[email] || null;
+          setUser({ email, role, name: principal.userDetails });
+        }
+        setLoading(false);
+      })
+      .catch(() => {
+        // Dev mode - auto login as admin
+        setUser({ email: "apptestportal@outlook.com", role: "admin", name: "Admin" });
+        setLoading(false);
+      });
+  }, []);
+
+  return { user, loading };
+}
+
+// ── Login screen ──────────────────────────────────────────────────────────────
+function LoginScreen() {
+  return (
+    <div style={{minHeight:"100vh",background:"#111827",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui,sans-serif",padding:20}}>
+      <div style={{background:"#1F2937",borderRadius:20,padding:"48px 40px",width:"100%",maxWidth:420,boxShadow:"0 32px 80px rgba(0,0,0,0.5)",textAlign:"center"}}>
+        <div style={{marginBottom:32}}>
+          <div style={{fontSize:48,marginBottom:16}}>🏗️</div>
+          <div style={{fontSize:28,fontWeight:800,color:"#F9F7F4",letterSpacing:-0.5,marginBottom:8}}>Site Planner</div>
+          <div style={{fontSize:12,color:"#6B9E7A",letterSpacing:3,marginBottom:4}}>CONSTRUCTION SCHEDULER</div>
+          <div style={{fontSize:13,color:"#6B7280",marginTop:16,lineHeight:1.6}}>Topcon Builders & NQ Stripouts</div>
+        </div>
+        <a href="/.auth/login/aad?post_login_redirect_uri=/"
+          style={{display:"flex",alignItems:"center",justifyContent:"center",gap:12,background:"#2563EB",color:"#fff",textDecoration:"none",padding:"14px 24px",borderRadius:12,fontSize:15,fontWeight:700,marginBottom:16}}>
+          <span style={{fontSize:20}}>⊞</span> Sign in with Microsoft
+        </a>
+        <div style={{fontSize:12,color:"#4B5563",marginTop:24,lineHeight:1.6}}>
+          Access restricted to authorised personnel only.<br/>
+          Contact your administrator to request access.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Access denied screen ──────────────────────────────────────────────────────
+function AccessDenied({ user }) {
+  return (
+    <div style={{minHeight:"100vh",background:"#111827",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui,sans-serif",padding:20}}>
+      <div style={{background:"#1F2937",borderRadius:20,padding:"48px 40px",width:"100%",maxWidth:420,boxShadow:"0 32px 80px rgba(0,0,0,0.5)",textAlign:"center"}}>
+        <div style={{fontSize:48,marginBottom:16}}>🔒</div>
+        <div style={{fontSize:22,fontWeight:800,color:"#F9F7F4",marginBottom:12}}>Access Denied</div>
+        <div style={{fontSize:14,color:"#9CA3AF",marginBottom:8,lineHeight:1.6}}>
+          <strong style={{color:"#F9F7F4"}}>{user?.email}</strong><br/>is not authorised to access this app.
+        </div>
+        <div style={{fontSize:13,color:"#6B7280",marginBottom:32,lineHeight:1.6}}>
+          Please contact your administrator to request access.
+        </div>
+        <a href="/.auth/logout" style={{display:"block",background:"#374151",color:"#9CA3AF",textDecoration:"none",padding:"12px 24px",borderRadius:10,fontSize:14,fontWeight:600}}>
+          Sign out & try another account
+        </a>
+      </div>
+    </div>
+  );
+}
+
+// ── Loading screen ─────────────────────────────────────────────────────────────
+function LoadingScreen() {
+  return (
+    <div style={{minHeight:"100vh",background:"#111827",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui,sans-serif"}}>
+      <div style={{textAlign:"center"}}>
+        <div style={{fontSize:48,marginBottom:16}}>🏗️</div>
+        <div style={{fontSize:16,color:"#6B7280"}}>Loading...</div>
+      </div>
+    </div>
+  );
+}
 
 const TOPCON_LOGO = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='36' viewBox='0 0 120 36'%3E%3Crect width='120' height='36' fill='%231B2D5B' rx='4'/%3E%3Ctext x='60' y='24' font-family='Arial' font-size='13' font-weight='bold' fill='white' text-anchor='middle'%3ETOPCON BUILDERS%3C/text%3E%3C/svg%3E";
 const NQ_LOGO = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='36' viewBox='0 0 120 36'%3E%3Crect width='120' height='36' fill='%23C0121C' rx='4'/%3E%3Ctext x='60' y='24' font-family='Arial' font-size='13' font-weight='bold' fill='white' text-anchor='middle'%3ENQ STRIPOUTS%3C/text%3E%3C/svg%3E";
@@ -63,7 +172,11 @@ function jobOnDate(job, dk) { return jobDates(job).includes(dk); }
 
 const emptyForm = { crew:"Topcon Builders", location:"", startDate:"", endDate:"", workers:[], notes:"", invoiced:false, poFile:null, poFileName:"", photos:[] };
 
-export default function App() {
+function SitePlanner({ userEmail, userRole }) {
+  const isAdminUser = userRole === "admin";
+  const [accessList, setAccessList] = useState(loadAccessList);
+  const [newAccessEmail, setNewAccessEmail] = useState("");
+  const [newAccessRole, setNewAccessRole] = useState("user");
   const [jobs, setJobs]     = useState(buildInitJobs);
   const [nextId, setNextId] = useState(9);
   const [workers, setWorkers] = useState(initWorkers);
@@ -482,6 +595,63 @@ export default function App() {
         {/* ── CONTACTS TAB ── */}
         {tab==="contacts" && (
           <div>
+            {/* ── APP ACCESS MANAGEMENT (Admin only) ── */}
+            {isAdminUser && (
+              <div style={{background:"#1F2937",borderRadius:14,padding:"20px 22px",marginBottom:20,border:"2px solid #374151"}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+                  <span style={{fontSize:20}}>🔐</span>
+                  <div style={{fontSize:15,fontWeight:800,color:"#F9F7F4"}}>App Access Management</div>
+                  <span style={{fontSize:11,background:"#374151",color:"#9CA3AF",padding:"2px 8px",borderRadius:6,fontWeight:600}}>ADMIN ONLY</span>
+                </div>
+                <div style={{marginBottom:16}}>
+                  {Object.entries(accessList).map(([email,role])=>(
+                    <div key={email} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:"#111827",borderRadius:10,marginBottom:6}}>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:13,fontWeight:600,color:"#F9F7F4"}}>{email}</div>
+                        <div style={{fontSize:11,color:role==="admin"?"#22C55E":"#6B9E7A",fontWeight:700,marginTop:1}}>{role==="admin"?"👑 Admin":"👤 User"}</div>
+                      </div>
+                      <button onClick={()=>{const nr=role==="admin"?"user":"admin";const u={...accessList,[email]:nr};setAccessList(u);saveAccessList(u);}}
+                        style={{padding:"5px 10px",border:"1px solid #374151",borderRadius:7,background:"#1F2937",color:"#9CA3AF",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+                        Make {role==="admin"?"User":"Admin"}
+                      </button>
+                      {email!==userEmail&&(
+                        <button onClick={()=>{if(!window.confirm("Remove access for "+email+"?"))return;const u={...accessList};delete u[email];setAccessList(u);saveAccessList(u);}}
+                          style={{padding:"5px 10px",border:"1px solid #7F1D1D",borderRadius:7,background:"#450A0A",color:"#FCA5A5",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div style={{borderTop:"1px solid #374151",paddingTop:14}}>
+                  <div style={{fontSize:11,fontWeight:700,color:"#6B7280",letterSpacing:1,marginBottom:10}}>ADD NEW USER</div>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                    <input value={newAccessEmail} onChange={e=>setNewAccessEmail(e.target.value)} placeholder="email@example.com" type="email"
+                      style={{flex:2,minWidth:180,border:"1.5px solid #374151",borderRadius:8,padding:"9px 12px",fontSize:13,background:"#111827",color:"#F9F7F4",outline:"none",boxSizing:"border-box"}}/>
+                    <select value={newAccessRole} onChange={e=>setNewAccessRole(e.target.value)}
+                      style={{flex:1,minWidth:100,border:"1.5px solid #374151",borderRadius:8,padding:"9px 12px",fontSize:13,background:"#111827",color:"#F9F7F4",outline:"none"}}>
+                      <option value="user">👤 User</option>
+                      <option value="admin">👑 Admin</option>
+                    </select>
+                    <button onClick={()=>{
+                      const em=newAccessEmail.toLowerCase().trim();
+                      if(!em||!em.includes("@")){alert("Enter a valid email.");return;}
+                      if(accessList[em]){alert("Already has access.");return;}
+                      const u={...accessList,[em]:newAccessRole};
+                      setAccessList(u);saveAccessList(u);
+                      setNewAccessEmail("");setNewAccessRole("user");
+                      alert("Access granted to "+em+" as "+newAccessRole+".");
+                    }} style={{padding:"9px 18px",border:"none",borderRadius:8,background:"#2563EB",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>
+                      + Add
+                    </button>
+                  </div>
+                  <div style={{fontSize:11,color:"#4B5563",marginTop:8,lineHeight:1.5}}>
+                    ℹ️ User must sign in with their Microsoft account. Changes are saved to this device — for full cross-device sync, Stage 2 email notifications will be added soon.
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div style={{display:"flex",gap:10,marginBottom:14}}>
               {crewKeys.map(crew=>(
                 <button key={crew} onClick={()=>addWorker(crew)}
@@ -829,4 +999,13 @@ export default function App() {
 
     </div>
   );
+}
+
+// ── Root App with auth gate ───────────────────────────────────────────────────
+export default function App() {
+  const { user, loading } = useAuth();
+  if (loading)        return <LoadingScreen />;
+  if (!user)          return <LoginScreen />;
+  if (!user.role)     return <AccessDenied user={user} />;
+  return <SitePlanner userEmail={user.email} userRole={user.role} />;
 }
