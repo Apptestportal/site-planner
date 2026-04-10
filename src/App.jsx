@@ -600,4 +600,4 @@ function SitePlanner({ currentUser, onLogout }) {
           const periodMonday = isWeek ? addDays(getMonday(new Date()), jobListOffset*7) : null;
           const periodDates  = isWeek ? DAYS.map((_,i)=>addDays(periodMonday,i)) : null;
           const pYear  = isWeek ? null : new Date(new Date().getFullYear(), new Date().getMonth()+jobListOffset, 1).getFullYear();
-          const pMon
+          const pMonth = isWeek ? null : new Date(new Date().getFullYear(), new Date().getMonth()+jobListOffset, 1).getMonth();
