@@ -27,30 +27,44 @@ function saveAccessList(list) {
 
 // ── Auth hook ────────────────────────────────────────────────────────────────
 function useAuth() {
-  const [user, setUser]     = useState(null);
+  const [user, setUser]       = useState(null);
   const [loading, setLoading] = useState(true);
+  const [rawAuth, setRawAuth] = useState(null);
 
   useEffect(() => {
     fetch("/.auth/me")
       .then(r => r.json())
       .then(data => {
+        setRawAuth(data);
         const principal = data.clientPrincipal;
         if (principal) {
-          const email = (principal.userDetails || "").toLowerCase().trim();
+          // Azure SWA Simple mode returns email in userDetails
+          // Try multiple possible fields
+          const claims = principal.claims || [];
+          const emailClaim = claims.find(c =>
+            c.typ === "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress" ||
+            c.typ === "preferred_username" ||
+            c.typ === "email" ||
+            c.typ === "upn"
+          );
+          const email = (
+            emailClaim?.val ||
+            principal.userDetails ||
+            ""
+          ).toLowerCase().trim();
+
           const access = loadAccessList();
           const role   = access[email] || null;
-          setUser({ email, role, name: principal.userDetails });
+          setUser({ email, role, name: email, principal });
         }
         setLoading(false);
       })
       .catch(() => {
-        // Dev mode - auto login as admin
-        setUser({ email: "apptestportal@outlook.com", role: "admin", name: "Admin" });
         setLoading(false);
       });
   }, []);
 
-  return { user, loading };
+  return { user, loading, rawAuth };
 }
 
 // ── Login screen ──────────────────────────────────────────────────────────────
@@ -78,21 +92,31 @@ function LoginScreen() {
 }
 
 // ── Access denied screen ──────────────────────────────────────────────────────
-function AccessDenied({ user }) {
+function AccessDenied({ user, rawAuth }) {
+  const [showDebug, setShowDebug] = useState(false);
   return (
     <div style={{minHeight:"100vh",background:"#111827",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui,sans-serif",padding:20}}>
-      <div style={{background:"#1F2937",borderRadius:20,padding:"48px 40px",width:"100%",maxWidth:420,boxShadow:"0 32px 80px rgba(0,0,0,0.5)",textAlign:"center"}}>
+      <div style={{background:"#1F2937",borderRadius:20,padding:"48px 40px",width:"100%",maxWidth:480,boxShadow:"0 32px 80px rgba(0,0,0,0.5)",textAlign:"center"}}>
         <div style={{fontSize:48,marginBottom:16}}>🔒</div>
         <div style={{fontSize:22,fontWeight:800,color:"#F9F7F4",marginBottom:12}}>Access Denied</div>
         <div style={{fontSize:14,color:"#9CA3AF",marginBottom:8,lineHeight:1.6}}>
-          <strong style={{color:"#F9F7F4"}}>{user?.email}</strong><br/>is not authorised to access this app.
+          <strong style={{color:"#F9F7F4"}}>{user?.email || "Unknown"}</strong><br/>is not authorised to access this app.
         </div>
-        <div style={{fontSize:13,color:"#6B7280",marginBottom:32,lineHeight:1.6}}>
+        <div style={{fontSize:13,color:"#6B7280",marginBottom:24,lineHeight:1.6}}>
           Please contact your administrator to request access.
         </div>
-        <a href="/.auth/logout" style={{display:"block",background:"#374151",color:"#9CA3AF",textDecoration:"none",padding:"12px 24px",borderRadius:10,fontSize:14,fontWeight:600}}>
+        <a href="/.auth/logout" style={{display:"block",background:"#374151",color:"#9CA3AF",textDecoration:"none",padding:"12px 24px",borderRadius:10,fontSize:14,fontWeight:600,marginBottom:12}}>
           Sign out & try another account
         </a>
+        <button onClick={()=>setShowDebug(p=>!p)} style={{background:"none",border:"1px solid #374151",color:"#4B5563",padding:"8px 16px",borderRadius:8,fontSize:12,cursor:"pointer"}}>
+          {showDebug?"Hide":"Show"} debug info
+        </button>
+        {showDebug&&(
+          <div style={{marginTop:12,background:"#111827",borderRadius:10,padding:12,textAlign:"left",fontSize:11,color:"#6B7280",wordBreak:"break-all"}}>
+            <div style={{marginBottom:6,color:"#9CA3AF",fontWeight:700}}>Auth response:</div>
+            <pre style={{whiteSpace:"pre-wrap",margin:0}}>{JSON.stringify(rawAuth,null,2)}</pre>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1004,9 +1028,9 @@ function SitePlanner({ userEmail, userRole }) {
 
 // ── Root App with auth gate ───────────────────────────────────────────────────
 export default function App() {
-  const { user, loading } = useAuth();
-  if (loading)        return <LoadingScreen />;
-  if (!user)          return <LoginScreen />;
-  if (!user.role)     return <AccessDenied user={user} />;
+  const { user, loading, rawAuth } = useAuth();
+  if (loading) return <LoadingScreen />;
+  if (!user)   return <LoginScreen />;
+  if (!user.role) return <AccessDenied user={user} rawAuth={rawAuth} />;
   return <SitePlanner userEmail={user.email} userRole={user.role} />;
 }
