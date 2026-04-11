@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import * as api from "./api.js";
 
 // ── Persistence helpers ───────────────────────────────────────────────────────
 const PERSIST_KEYS = {
@@ -61,23 +62,24 @@ function LoginScreen({ onLogin }) {
   const [error, setError]   = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setError("");
     setLoading(true);
-    const users = loadUsers();
-    const user = users.find(u =>
-      u.email.toLowerCase() === email.toLowerCase().trim() &&
-      u.code === code.trim()
-    );
-    setTimeout(() => {
+    try {
+      const user = await api.login(email.trim(), code.trim());
       setLoading(false);
-      if (user) {
+      if (user && user.email) {
+        api.setApiUser(user);
         onLogin(user);
       } else {
         setError("Invalid email or access code. Contact your administrator.");
         setCode("");
       }
-    }, 500);
+    } catch (err) {
+      setLoading(false);
+      setError("Invalid email or access code. Contact your administrator.");
+      setCode("");
+    }
   };
 
   return (
@@ -265,9 +267,11 @@ function UserManagement({ currentUser }) {
 }
 
 function SitePlanner({ currentUser, onLogout }) {
-  const [jobs, setJobs]     = useState(()=>loadPersisted(PERSIST_KEYS.jobs, buildInitJobs));
-  const [nextId, setNextId] = useState(()=>loadPersisted(PERSIST_KEYS.nextId, 9));
-  const [workers, setWorkers] = useState(()=>loadPersisted(PERSIST_KEYS.workers, initWorkers));
+  const [jobs, setJobs]     = useState([]);
+  const [nextId, setNextId] = useState(9);
+  const [workers, setWorkers] = useState({});
+  const [dataLoading, setDataLoading] = useState(true);
+  const [dataError, setDataError] = useState("");
   const [tab, setTab]       = useState("schedule");
   const [weekOffset, setWeekOffset]   = useState(0);
   const [monthOffset, setMonthOffset] = useState(0);
@@ -278,8 +282,8 @@ function SitePlanner({ currentUser, onLogout }) {
   const [dayPopup, setDayPopup]       = useState(null);
   const [expandedWorker, setExpandedWorker] = useState(null);
   const [monthCrewFilter, setMonthCrewFilter] = useState("All");
-  const [leave, setLeave] = useState(()=>loadPersisted(PERSIST_KEYS.leave, []));
-  const [leaveNextId, setLeaveNextId] = useState(()=>loadPersisted(PERSIST_KEYS.leaveNextId, 1));
+  const [leave, setLeave] = useState([]);
+  const [leaveNextId, setLeaveNextId] = useState(1);
   const [leaveForm, setLeaveForm] = useState({crew:"Topcon Builders",workerName:"",startDate:"",endDate:"",reason:""});
   const [leaveFilter, setLeaveFilter] = useState("All");
   const [jobListPeriod, setJobListPeriod] = useState("week");
@@ -299,12 +303,91 @@ function SitePlanner({ currentUser, onLogout }) {
   const poInputRef = useRef();
   const photoInputRef = useRef();
 
-  // Persist on change
-  useEffect(()=>savePersisted(PERSIST_KEYS.jobs, jobs), [jobs]);
-  useEffect(()=>savePersisted(PERSIST_KEYS.nextId, nextId), [nextId]);
-  useEffect(()=>savePersisted(PERSIST_KEYS.workers, workers), [workers]);
-  useEffect(()=>savePersisted(PERSIST_KEYS.leave, leave), [leave]);
-  useEffect(()=>savePersisted(PERSIST_KEYS.leaveNextId, leaveNextId), [leaveNextId]);
+  // ── Initial load from API + one-time migration from localStorage ──
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setDataLoading(true);
+        setDataError("");
+        const [apiJobs, apiWorkers, apiLeave, apiThreads] = await Promise.all([
+          api.listJobs(), api.getWorkers(), api.listLeave(), api.getThreads()
+        ]);
+        if (cancelled) return;
+
+        // One-time migration: if API is fully empty AND localStorage has legacy data, push it up.
+        const apiEmpty = (apiJobs?.length || 0) === 0
+          && Object.keys(apiWorkers || {}).length === 0
+          && (apiLeave?.length || 0) === 0;
+        let finalJobs = apiJobs || [];
+        let finalWorkers = apiWorkers || {};
+        let finalLeave = apiLeave || [];
+        let finalThreads = apiThreads || {};
+        if (apiEmpty) {
+          const lsJobs   = loadPersisted(PERSIST_KEYS.jobs, null);
+          const lsWorkers= loadPersisted(PERSIST_KEYS.workers, null);
+          const lsLeave  = loadPersisted(PERSIST_KEYS.leave, null);
+          const lsThreads= loadPersisted("siteplanner_threads_v1", null);
+          if (lsJobs && lsJobs.length) {
+            await api.bulkUploadJobs(lsJobs);
+            finalJobs = lsJobs;
+          } else {
+            // Seed defaults so the app isn't blank for the first user
+            const seed = buildInitJobs();
+            await api.bulkUploadJobs(seed);
+            finalJobs = seed;
+          }
+          if (lsWorkers && Object.keys(lsWorkers).length) {
+            await api.saveWorkers(lsWorkers);
+            finalWorkers = lsWorkers;
+          } else {
+            await api.saveWorkers(initWorkers);
+            finalWorkers = initWorkers;
+          }
+          if (lsLeave && lsLeave.length) {
+            await api.bulkUploadLeave(lsLeave);
+            finalLeave = lsLeave;
+          }
+          if (lsThreads && Object.keys(lsThreads).length) {
+            await api.saveThreads(lsThreads);
+            finalThreads = lsThreads;
+          }
+        }
+
+        setJobs(finalJobs);
+        setWorkers(finalWorkers);
+        setLeave(finalLeave);
+        setThreads(finalThreads);
+        const maxJobId = finalJobs.reduce((m, j) => Math.max(m, j.id || 0), 0);
+        setNextId(maxJobId + 1);
+        const maxLeaveId = finalLeave.reduce((m, l) => Math.max(m, l.id || 0), 0);
+        setLeaveNextId(maxLeaveId + 1);
+        setDataLoading(false);
+      } catch (err) {
+        if (cancelled) return;
+        console.error("Load failed", err);
+        setDataError("Could not load data from server. Check your connection.");
+        setDataLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Mirror workers + threads to API on change (whole-blob writes)
+  const workersDirty = useRef(false);
+  useEffect(() => {
+    if (dataLoading) return;
+    if (!workersDirty.current) { workersDirty.current = true; return; }
+    api.saveWorkers(workers).catch(e => console.error("workers save failed", e));
+  }, [workers, dataLoading]);
+
+  const threadsDirty = useRef(false);
+  useEffect(() => {
+    if (dataLoading) return;
+    if (!threadsDirty.current) { threadsDirty.current = true; return; }
+    api.saveThreads(threads).catch(e => console.error("threads save failed", e));
+  }, [threads, dataLoading]);
 
   const crewKeys = Object.keys(CREW_STYLE);
   const C = (crew) => CREW_STYLE[crew] || CREW_STYLE["Topcon Builders"];
@@ -366,13 +449,46 @@ function SitePlanner({ currentUser, onLogout }) {
   const saveJob = () => {
     if (!form.location.trim() || !form.startDate) return;
     const endDate = form.endDate && form.endDate >= form.startDate ? form.endDate : form.startDate;
-    if (editId !== null) { setJobs(p => p.map(j => j.id===editId ? {...j,...form,endDate} : j)); }
-    else { setJobs(p => [...p, { id:nextId, ...form, endDate }]); setNextId(n=>n+1); }
+    const nowIso = new Date().toISOString();
+    if (editId !== null) {
+      const updated = jobs.find(j => j.id === editId);
+      const merged = {
+        ...updated, ...form, endDate,
+        createdBy: updated?.createdBy || currentUser.name,
+        createdAt: updated?.createdAt || nowIso,
+        lastEditedBy: currentUser.name,
+        lastEditedAt: nowIso
+      };
+      setJobs(p => p.map(j => j.id===editId ? merged : j));
+      api.saveJob(merged).catch(e => console.error("saveJob failed", e));
+    } else {
+      const newJob = {
+        id: nextId, ...form, endDate,
+        createdBy: currentUser.name,
+        createdAt: nowIso,
+        lastEditedBy: currentUser.name,
+        lastEditedAt: nowIso
+      };
+      setJobs(p => [...p, newJob]);
+      setNextId(n=>n+1);
+      api.saveJob(newJob).catch(e => console.error("saveJob failed", e));
+    }
     setShowModal(false);
   };
-  const deleteJob = (id) => { setJobs(p=>p.filter(j=>j.id!==id)); setShowModal(false); setDayPopup(null); };
+  const deleteJob = (id) => {
+    setJobs(p=>p.filter(j=>j.id!==id));
+    setShowModal(false); setDayPopup(null);
+    api.deleteJobApi(id).catch(e => console.error("deleteJob failed", e));
+  };
   const toggleWorker = (w) => setForm(p => ({ ...p, workers: p.workers.includes(w) ? p.workers.filter(x=>x!==w) : [...p.workers,w] }));
-  const toggleInvoiced = (id) => setJobs(p => p.map(j => j.id===id ? {...j, invoiced:!j.invoiced} : j));
+  const toggleInvoiced = (id) => {
+    setJobs(p => {
+      const next = p.map(j => j.id===id ? {...j, invoiced:!j.invoiced} : j);
+      const updated = next.find(j => j.id===id);
+      if (updated) api.saveJob(updated).catch(e => console.error("toggleInvoiced failed", e));
+      return next;
+    });
+  };
   const toggleWorkerActive = (crew, idx) => {
     setWorkers(p => {
       const w = p[crew][idx];
@@ -388,9 +504,11 @@ function SitePlanner({ currentUser, onLogout }) {
   };
   const addLeave = () => {
     if (!leaveForm.workerName || !leaveForm.startDate || !leaveForm.endDate) { alert("Fill in worker, start and end date."); return; }
-    setLeave(p => [...p, { id:leaveNextId, ...leaveForm }]);
+    const entry = { id:leaveNextId, ...leaveForm };
+    setLeave(p => [...p, entry]);
     setLeaveNextId(p => p+1);
     setLeaveForm(p => ({...p, workerName:"", startDate:"", endDate:"", reason:""}));
+    api.saveLeaveEntry(entry).catch(e => console.error("addLeave failed", e));
   };
 
   const spanLabel = (job) => { const sd=new Date(job.startDate),ed=new Date(job.endDate); return job.startDate===job.endDate ? fmtDate(sd) : `${fmtDate(sd)} – ${fmtDate(ed)}`; };
@@ -417,6 +535,16 @@ function SitePlanner({ currentUser, onLogout }) {
   };
 
   const s_hdr = {background:"#111827",color:"#F9F7F4"};
+
+  if (dataLoading) {
+    return (
+      <div style={{minHeight:"100vh",background:"#111827",display:"flex",alignItems:"center",justifyContent:"center",color:"#F9F7F4",fontFamily:"system-ui,sans-serif",flexDirection:"column",gap:16}}>
+        <div style={{fontSize:48}}>🏗️</div>
+        <div style={{fontSize:14,color:"#9CA3AF",letterSpacing:2}}>LOADING SITE PLANNER…</div>
+        {dataError && <div style={{fontSize:13,color:"#FCA5A5",maxWidth:400,textAlign:"center"}}>{dataError}</div>}
+      </div>
+    );
+  }
 
   return (
     <div style={{minHeight:"100vh",background:"#F0EDE8",fontFamily:"system-ui,sans-serif"}}>
@@ -812,7 +940,7 @@ function SitePlanner({ currentUser, onLogout }) {
                         <div style={{fontWeight:700,color:"#1F2937"}}>{lv.workerName}</div>
                         <div style={{fontSize:12,color:"#6B7280"}}>{lv.startDate===lv.endDate?fmtDate(sd):`${fmtDate(sd)} – ${fmtDate(ed)}`} · {days} day{days!==1?"s":""}{lv.reason?` · ${lv.reason}`:""}</div>
                       </div>
-                      <button onClick={()=>setLeave(p=>p.filter(l=>l.id!==lv.id))}
+                      <button onClick={()=>{setLeave(p=>p.filter(l=>l.id!==lv.id));api.deleteLeaveEntry(lv.id).catch(e=>console.error(e));}}
                         style={{padding:"4px 10px",border:"1.5px solid #FCA5A5",borderRadius:7,background:"#FEF2F2",color:"#DC2626",fontSize:11,fontWeight:600,cursor:"pointer"}}>Remove</button>
                     </div>
                   );
@@ -951,6 +1079,26 @@ function SitePlanner({ currentUser, onLogout }) {
                   )
                 )}
               </div>
+              {editId !== null && (() => {
+                const j = jobs.find(x => x.id === editId);
+                if (!j) return null;
+                const fmtMeta = (iso) => {
+                  if (!iso) return "";
+                  try {
+                    const d = new Date(iso);
+                    return d.toLocaleDateString("en-AU", { day:"numeric", month:"short", year:"numeric" });
+                  } catch(e) { return ""; }
+                };
+                const createdLine = j.createdBy ? `Created by ${j.createdBy}${j.createdAt?` on ${fmtMeta(j.createdAt)}`:""}` : "";
+                const editedLine = j.lastEditedBy ? `Last edited by ${j.lastEditedBy}${j.lastEditedAt?` on ${fmtMeta(j.lastEditedAt)}`:""}` : "";
+                if (!createdLine && !editedLine) return null;
+                return (
+                  <div style={{fontSize:12,color:"#9CA3AF",fontStyle:"italic",lineHeight:1.5}}>
+                    {createdLine && <div>{createdLine}</div>}
+                    {editedLine && <div>{editedLine}</div>}
+                  </div>
+                );
+              })()}
               <div>
                 <label style={{fontSize:10,fontWeight:700,color:"#9CA3AF",letterSpacing:1,display:"block",marginBottom:7}}>NOTES</label>
                 <input value={form.notes} onChange={e=>setForm(p=>({...p,notes:e.target.value}))} placeholder="e.g. PPE required, early start..."
@@ -1088,17 +1236,21 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const s = sessionStorage.getItem("siteplanner_session");
-      return s ? JSON.parse(s) : null;
+      const u = s ? JSON.parse(s) : null;
+      if (u) api.setApiUser(u);
+      return u;
     } catch(e) { return null; }
   });
 
   const handleLogin = (user) => {
     sessionStorage.setItem("siteplanner_session", JSON.stringify(user));
+    api.setApiUser(user);
     setCurrentUser(user);
   };
 
   const handleLogout = () => {
     sessionStorage.removeItem("siteplanner_session");
+    api.clearApiUser();
     setCurrentUser(null);
   };
 
