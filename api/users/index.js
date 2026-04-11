@@ -1,4 +1,10 @@
-const { ensureTables, getClient, authenticate, unauth, requireAdmin, ok, bad } = require("../shared/table");
+let _loadError = null;
+let shared;
+try {
+  shared = require("../shared/table");
+} catch (e) {
+  _loadError = e;
+}
 
 const PARTITION = "user";
 
@@ -46,6 +52,20 @@ async function seedIfEmpty(client) {
 }
 
 module.exports = async function (context, req) {
+  if (_loadError) {
+    context.res = {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+      body: {
+        error: "Module load failed",
+        message: _loadError.message,
+        stack: _loadError.stack,
+        hasConnectionString: !!process.env.AZURE_STORAGE_CONNECTION_STRING
+      }
+    };
+    return;
+  }
+  const { ensureTables, getClient, authenticate, unauth, requireAdmin, ok, bad } = shared;
   try {
     await ensureTables();
     const client = getClient("users");
@@ -100,7 +120,16 @@ module.exports = async function (context, req) {
 
     return bad(context, "Method not allowed", 405);
   } catch (err) {
-    context.log.error(err);
-    return bad(context, err.message || "Server error", 500);
+    context.log.error("users function error:", err, err && err.stack);
+    context.res = {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+      body: {
+        error: "Server error",
+        message: err && err.message || String(err),
+        stack: err && err.stack || null,
+        hasConnectionString: !!process.env.AZURE_STORAGE_CONNECTION_STRING
+      }
+    };
   }
 };
