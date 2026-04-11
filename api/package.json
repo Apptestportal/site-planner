@@ -1,5 +1,12 @@
 {
   "name": "site-planner-api",
   "version": "1.0.0",
-  "main": "index.js"
+  "description": "Azure Functions API for Site Planner",
+  "main": "index.js",
+  "engines": {
+    "node": "20"
+  },
+  "dependencies": {
+    "@azure/data-tables": "^13.2.2"
+  }
 }
