@@ -120,11 +120,16 @@ module.exports = async function (context, req) {
     const emailParam = context.bindingData.email;
 
     if (req.method === "GET") {
-      // Admins see all users; non-admins see nothing useful
-      if (!requireAdmin(user)) return ok(context, []);
       const out = [];
       const it = client.listEntities({ queryOptions: { filter: `PartitionKey eq '${PARTITION}'` } });
-      for await (const e of it) out.push(fromEntity(e));
+      for await (const e of it) {
+        if (requireAdmin(user)) {
+          out.push(fromEntity(e));
+        } else {
+          // Non-admins get name + email only (for worker email auto-linking)
+          out.push({ name: e.name, email: e.email });
+        }
+      }
       return ok(context, out);
     }
 

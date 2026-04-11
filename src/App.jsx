@@ -334,6 +334,7 @@ function SitePlanner({ currentUser, onLogout }) {
   const [jobs, setJobs]     = useState([]);
   const [nextId, setNextId] = useState(9);
   const [workers, setWorkers] = useState({});
+  const [usersLookup, setUsersLookup] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [dataError, setDataError] = useState("");
   const [tab, setTab]       = useState("schedule");
@@ -374,10 +375,11 @@ function SitePlanner({ currentUser, onLogout }) {
       try {
         setDataLoading(true);
         setDataError("");
-        const [apiJobs, apiWorkers, apiLeave, apiThreads] = await Promise.all([
-          api.listJobs(), api.getWorkers(), api.listLeave(), api.getThreads()
+        const [apiJobs, apiWorkers, apiLeave, apiThreads, apiUsersForLookup] = await Promise.all([
+          api.listJobs(), api.getWorkers(), api.listLeave(), api.getThreads(), api.listUsers().catch(()=>[])
         ]);
         if (cancelled) return;
+        setUsersLookup(apiUsersForLookup || []);
 
         // One-time migration: if API is fully empty AND localStorage has legacy data, push it up.
         const apiEmpty = (apiJobs?.length || 0) === 0
@@ -893,20 +895,26 @@ function SitePlanner({ currentUser, onLogout }) {
           <div>
             {currentUser.role==="admin"&&<UserManagement currentUser={currentUser}/>}
 
-            <div style={{display:"flex",gap:10,marginBottom:14}}>
-              {crewKeys.map(crew=>(
-                <button key={crew} onClick={()=>addWorker(crew)}
-                  style={{flex:1,padding:"10px",border:`2px dashed ${C(crew).color}`,borderRadius:10,background:C(crew).light,color:C(crew).accent,fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-                  <img src={crew==="Topcon Builders"?TOPCON_LOGO:NQ_LOGO} alt="" style={{height:16,objectFit:"contain"}}/>
-                  + Add Worker
-                </button>
-              ))}
-            </div>
+            {currentUser.role==="admin" && (
+              <div style={{display:"flex",gap:10,marginBottom:14}}>
+                {crewKeys.map(crew=>(
+                  <button key={crew} onClick={()=>addWorker(crew)}
+                    style={{flex:1,padding:"10px",border:`2px dashed ${C(crew).color}`,borderRadius:10,background:C(crew).light,color:C(crew).accent,fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                    <img src={crew==="Topcon Builders"?TOPCON_LOGO:NQ_LOGO} alt="" style={{height:16,objectFit:"contain"}}/>
+                    + Add Worker
+                  </button>
+                ))}
+              </div>
+            )}
             {crewKeys.flatMap(crew=>(workers[crew]||[]).map((worker,idx)=>({crew,worker,idx}))).map(({crew,worker,idx})=>{
               const s=C(crew);
               const key=workerKey(crew,idx);
               const isOpen=expandedWorker===key;
               const jobCount=jobs.filter(j=>j.crew===crew&&j.workers.includes(worker.name)).length;
+              // Auto-link email from users table by name match if worker email is blank
+              const linkedUser = usersLookup.find(u => u.name && u.name.toLowerCase() === (worker.name||"").toLowerCase());
+              const displayEmail = worker.email || (linkedUser && linkedUser.email) || "";
+              const isAdmin = currentUser.role==="admin";
               return (
                 <div key={`${crew}-${idx}`} style={{border:`1.5px solid ${isOpen?s.color:"#EDE9E4"}`,borderRadius:12,overflow:"hidden",marginBottom:8}}>
                   <div onClick={()=>setExpandedWorker(isOpen?null:key)} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",cursor:"pointer",background:isOpen?s.light:"#fff"}}>
@@ -923,7 +931,7 @@ function SitePlanner({ currentUser, onLogout }) {
                       </div>
                     </div>
                     <div style={{display:"flex",alignItems:"center",gap:10}}>
-                      <div onClick={e=>{e.stopPropagation();if(currentUser.role==="admin")toggleWorkerActive(crew,idx);}} title={currentUser.role!=="admin"?"Admin only":""} style={{display:"flex",alignItems:"center",gap:6,cursor:currentUser.role==="admin"?"pointer":"not-allowed",opacity:currentUser.role==="admin"?1:0.6}}>
+                      <div onClick={e=>{e.stopPropagation();if(isAdmin)toggleWorkerActive(crew,idx);}} title={!isAdmin?"Admin only":""} style={{display:"flex",alignItems:"center",gap:6,cursor:isAdmin?"pointer":"not-allowed",opacity:isAdmin?1:0.6}}>
                         <div style={{width:42,height:22,borderRadius:11,background:worker.active===false?"#D1D5DB":"#22C55E",position:"relative",border:`2px solid ${worker.active===false?"#9CA3AF":"#16A34A"}`}}>
                           <div style={{width:14,height:14,borderRadius:"50%",background:"#fff",position:"absolute",top:2,left:worker.active===false?2:20,transition:"left 0.2s"}}/>
                         </div>
@@ -933,16 +941,41 @@ function SitePlanner({ currentUser, onLogout }) {
                     </div>
                   </div>
                   {isOpen&&(
-                    <div style={{padding:"14px 18px",borderTop:`1px solid ${s.color}22`,background:"#FAFAF8",display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-                      {[{label:"Name",field:"name"},{label:"Role",field:"role"},{label:"Phone",field:"phone"},{label:"Email",field:"email"}].map(({label,field})=>(
-                        <div key={field}>
-                          <label style={{fontSize:10,fontWeight:700,color:"#9CA3AF",letterSpacing:1,display:"block",marginBottom:4}}>{label.toUpperCase()}</label>
-                          <input value={worker[field]||""} onChange={e=>updateWorker(crew,idx,field,e.target.value)}
-                            style={{width:"100%",border:"1.5px solid #EDE9E4",borderRadius:8,padding:"8px 10px",fontSize:13,color:"#1F2937",outline:"none",boxSizing:"border-box",background:"#fff"}}
-                            onFocus={e=>e.target.style.borderColor=s.color} onBlur={e=>e.target.style.borderColor="#EDE9E4"}/>
+                    isAdmin ? (
+                      <div style={{padding:"14px 18px",borderTop:`1px solid ${s.color}22`,background:"#FAFAF8",display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                        {[{label:"Name",field:"name"},{label:"Role",field:"role"},{label:"Phone",field:"phone"},{label:"Email",field:"email"}].map(({label,field})=>(
+                          <div key={field}>
+                            <label style={{fontSize:10,fontWeight:700,color:"#9CA3AF",letterSpacing:1,display:"block",marginBottom:4}}>{label.toUpperCase()}</label>
+                            <input value={worker[field]||""} onChange={e=>updateWorker(crew,idx,field,e.target.value)}
+                              style={{width:"100%",border:"1.5px solid #EDE9E4",borderRadius:8,padding:"8px 10px",fontSize:13,color:"#1F2937",outline:"none",boxSizing:"border-box",background:"#fff"}}
+                              onFocus={e=>e.target.style.borderColor=s.color} onBlur={e=>e.target.style.borderColor="#EDE9E4"}/>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{padding:"14px 18px",borderTop:`1px solid ${s.color}22`,background:"#FAFAF8",display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                        <div>
+                          <label style={{fontSize:10,fontWeight:700,color:"#9CA3AF",letterSpacing:1,display:"block",marginBottom:4}}>NAME</label>
+                          <div style={{fontSize:13,color:"#1F2937",padding:"8px 0"}}>{worker.name||"—"}</div>
                         </div>
-                      ))}
-                    </div>
+                        <div>
+                          <label style={{fontSize:10,fontWeight:700,color:"#9CA3AF",letterSpacing:1,display:"block",marginBottom:4}}>ROLE</label>
+                          <div style={{fontSize:13,color:"#1F2937",padding:"8px 0"}}>{worker.role||"—"}</div>
+                        </div>
+                        <div>
+                          <label style={{fontSize:10,fontWeight:700,color:"#9CA3AF",letterSpacing:1,display:"block",marginBottom:4}}>PHONE</label>
+                          <div style={{fontSize:13,padding:"8px 0"}}>
+                            {worker.phone ? <a href={`tel:${worker.phone.replace(/\s+/g,"")}`} style={{color:s.color,textDecoration:"none",fontWeight:600}}>📱 {worker.phone}</a> : <span style={{color:"#9CA3AF"}}>—</span>}
+                          </div>
+                        </div>
+                        <div>
+                          <label style={{fontSize:10,fontWeight:700,color:"#9CA3AF",letterSpacing:1,display:"block",marginBottom:4}}>EMAIL</label>
+                          <div style={{fontSize:13,padding:"8px 0"}}>
+                            {displayEmail ? <a href={`mailto:${displayEmail}`} style={{color:s.color,textDecoration:"none",fontWeight:600,wordBreak:"break-all"}}>✉️ {displayEmail}</a> : <span style={{color:"#9CA3AF"}}>—</span>}
+                          </div>
+                        </div>
+                      </div>
+                    )
                   )}
                 </div>
               );
@@ -1153,7 +1186,10 @@ function SitePlanner({ currentUser, onLogout }) {
                   if (!iso) return "";
                   try {
                     const d = new Date(iso);
-                    return d.toLocaleDateString("en-AU", { day:"numeric", month:"short", year:"numeric" });
+                    const dd = String(d.getDate()).padStart(2,"0");
+                    const mm = String(d.getMonth()+1).padStart(2,"0");
+                    const yy = String(d.getFullYear()).slice(-2);
+                    return `${dd}/${mm}/${yy}`;
                   } catch(e) { return ""; }
                 };
                 const createdLine = j.createdBy ? `Created by ${j.createdBy}${j.createdAt?` on ${fmtMeta(j.createdAt)}`:""}` : "";
