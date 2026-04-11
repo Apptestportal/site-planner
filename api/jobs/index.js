@@ -16,8 +16,7 @@ function toEntity(job) {
     invoiced: !!job.invoiced,
     poFileName: job.poFileName || "",
     photosJson: JSON.stringify(job.photos || []),
-    documentLink: job.documentLink || "",
-    documentName: job.documentName || "",
+    documentLinksJson: JSON.stringify(job.documentLinks || (job.documentLink ? [{name:job.documentName||"",url:job.documentLink}] : [])),
     createdBy: job.createdBy || "",
     createdAt: job.createdAt || "",
     lastEditedBy: job.lastEditedBy || "",
@@ -26,6 +25,12 @@ function toEntity(job) {
 }
 
 function fromEntity(e) {
+  let docLinks = [];
+  if (e.documentLinksJson) {
+    try { docLinks = JSON.parse(e.documentLinksJson); } catch(err) { docLinks = []; }
+  } else if (e.documentLink) {
+    docLinks = [{ name: e.documentName||"", url: e.documentLink }];
+  }
   return {
     id: parseInt(e.rowKey, 10),
     crew: e.crew,
@@ -38,8 +43,7 @@ function fromEntity(e) {
     poFile: null,
     poFileName: e.poFileName || "",
     photos: e.photosJson ? JSON.parse(e.photosJson) : [],
-    documentLink: e.documentLink || "",
-    documentName: e.documentName || "",
+    documentLinks: docLinks,
     createdBy: e.createdBy || "",
     createdAt: e.createdAt || "",
     lastEditedBy: e.lastEditedBy || "",

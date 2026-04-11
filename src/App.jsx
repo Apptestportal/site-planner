@@ -194,7 +194,7 @@ function jobDates(job) {
 }
 function jobOnDate(job, dk) { return jobDates(job).includes(dk); }
 
-const emptyForm = { crew:"Topcon Builders", location:"", startDate:"", endDate:"", workers:[], notes:"", invoiced:false, poFile:null, poFileName:"", photos:[], documentLink:"", documentName:"" };
+const emptyForm = { crew:"Topcon Builders", location:"", startDate:"", endDate:"", workers:[], notes:"", invoiced:false, poFile:null, poFileName:"", photos:[], documentLinks:[] };
 
 
 function UserManagement({ currentUser }) {
@@ -509,7 +509,14 @@ function SitePlanner({ currentUser, onLogout }) {
     setEditId(null); setShowModal(true); setDayPopup(null);
   };
   const openEdit = (job) => {
-    setForm({ crew:job.crew, location:job.location, startDate:job.startDate, endDate:job.endDate, workers:[...job.workers], notes:job.notes, invoiced:job.invoiced||false, poFile:job.poFile||null, poFileName:job.poFileName||"", photos:job.photos||[], documentLink:job.documentLink||"", documentName:job.documentName||"" });
+    // Migrate legacy single documentLink/documentName to array
+    let docLinks = [];
+    if (Array.isArray(job.documentLinks)) {
+      docLinks = job.documentLinks.map(d => ({ name: d.name||"", url: d.url||"" }));
+    } else if (job.documentLink) {
+      docLinks = [{ name: job.documentName||"", url: job.documentLink }];
+    }
+    setForm({ crew:job.crew, location:job.location, startDate:job.startDate, endDate:job.endDate, workers:[...job.workers], notes:job.notes, invoiced:job.invoiced||false, poFile:job.poFile||null, poFileName:job.poFileName||"", photos:job.photos||[], documentLinks: docLinks });
     setEditId(job.id); setShowModal(true);
   };
   const saveJob = () => {
@@ -1145,39 +1152,64 @@ function SitePlanner({ currentUser, onLogout }) {
                 </div>
               </div>
               <div>
-                <label style={{fontSize:10,fontWeight:700,color:"#9CA3AF",letterSpacing:1,display:"block",marginBottom:7}}>DOCUMENT LINK {currentUser.role!=="admin"&&<span style={{color:"#9CA3AF",fontWeight:500,letterSpacing:0}}>(admin only)</span>}</label>
-                {currentUser.role==="admin" ? (
-                  <div style={{display:"flex",gap:6}}>
-                    <input value={form.documentName} onChange={e=>setForm(p=>({...p,documentName:e.target.value}))} placeholder="Document name"
-                      style={{flex:"0 0 35%",border:"1.5px solid #E5E0D8",borderRadius:8,padding:"9px 12px",fontSize:13,boxSizing:"border-box",outline:"none"}}/>
-                    <input value={form.documentLink} onChange={e=>setForm(p=>({...p,documentLink:e.target.value}))} placeholder="https://... (SharePoint, Dropbox, Google)"
-                      style={{flex:1,border:"1.5px solid #E5E0D8",borderRadius:8,padding:"9px 12px",fontSize:13,boxSizing:"border-box",outline:"none"}}/>
-                  </div>
-                ) : (
-                  form.documentLink ? (() => {
-                    const u = form.documentLink.toLowerCase();
-                    const icon = (u.includes("sharepoint")||u.includes("office.com")) ? "📊"
-                      : u.includes("dropbox") ? "📦"
-                      : (u.includes("google")||u.includes("docs.google")||u.includes("drive.google")) ? "🟢"
-                      : "🔗";
-                    let displayName = form.documentName;
-                    if (!displayName) {
-                      try {
-                        const path = form.documentLink.split("?")[0].split("#")[0];
-                        const last = path.split("/").filter(Boolean).pop() || "Open document";
-                        displayName = decodeURIComponent(last).replace(/\.[^.]+$/, "");
-                      } catch(e) { displayName = "Open document"; }
-                    }
+                <label style={{fontSize:10,fontWeight:700,color:"#9CA3AF",letterSpacing:1,display:"block",marginBottom:7}}>DOCUMENT LINKS {currentUser.role!=="admin"&&<span style={{color:"#9CA3AF",fontWeight:500,letterSpacing:0}}>(admin only)</span>}</label>
+                {(() => {
+                  const linkIcon = (url) => {
+                    const u = (url||"").toLowerCase();
+                    if (u.includes("sharepoint")||u.includes("office.com")) return "📊";
+                    if (u.includes("dropbox")) return "📦";
+                    if (u.includes("google")||u.includes("docs.google")||u.includes("drive.google")) return "🟢";
+                    return "🔗";
+                  };
+                  const autoName = (url) => {
+                    try {
+                      const path = (url||"").split("?")[0].split("#")[0];
+                      const last = path.split("/").filter(Boolean).pop() || "Open document";
+                      return decodeURIComponent(last).replace(/\.[^.]+$/, "");
+                    } catch(e) { return "Open document"; }
+                  };
+                  if (currentUser.role==="admin") {
+                    const links = form.documentLinks||[];
+                    const updateLink = (i,field,val) => setForm(p=>({...p,documentLinks:p.documentLinks.map((d,j)=>j===i?{...d,[field]:val}:d)}));
+                    const addLink = () => setForm(p=>({...p,documentLinks:[...(p.documentLinks||[]),{name:"",url:""}]}));
+                    const removeLink = (i) => setForm(p=>({...p,documentLinks:p.documentLinks.filter((_,j)=>j!==i)}));
                     return (
-                      <a href={form.documentLink} target="_blank" rel="noopener noreferrer" style={{display:"inline-flex",alignItems:"center",gap:8,padding:"9px 12px",border:"1.5px solid #E5E0D8",borderRadius:8,fontSize:13,color:"#2563EB",textDecoration:"none",background:"#FAFAF8"}}>
-                        <span>{icon}</span>
-                        <span style={{fontWeight:600}}>{displayName}</span>
-                      </a>
+                      <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                        {links.length===0 && (
+                          <button onClick={addLink} style={{padding:"8px 12px",border:"1.5px dashed #D1C9BE",borderRadius:8,background:"transparent",color:"#9CA3AF",fontSize:12,fontWeight:600,cursor:"pointer"}}>+ Add document link</button>
+                        )}
+                        {links.map((d,i)=>(
+                          <div key={i} style={{display:"flex",gap:6,alignItems:"center"}}>
+                            <input value={d.name} onChange={e=>updateLink(i,"name",e.target.value)} placeholder="Document name"
+                              style={{flex:"0 0 30%",border:"1.5px solid #E5E0D8",borderRadius:8,padding:"9px 12px",fontSize:13,boxSizing:"border-box",outline:"none"}}/>
+                            <input value={d.url} onChange={e=>updateLink(i,"url",e.target.value)} placeholder="https://..."
+                              style={{flex:1,border:"1.5px solid #E5E0D8",borderRadius:8,padding:"9px 12px",fontSize:13,boxSizing:"border-box",outline:"none"}}/>
+                            <a href={d.url||"#"} target="_blank" rel="noopener noreferrer" onClick={e=>{if(!d.url)e.preventDefault();}}
+                              title="Test link in new tab"
+                              style={{flex:"0 0 36px",height:36,display:"flex",alignItems:"center",justifyContent:"center",border:"1.5px solid #E5E0D8",borderRadius:8,background:d.url?"#FAFAF8":"#F3F4F6",color:d.url?"#2563EB":"#9CA3AF",textDecoration:"none",fontSize:14,fontWeight:700}}>↗</a>
+                            <button onClick={()=>removeLink(i)} title="Remove" style={{flex:"0 0 28px",height:36,border:"1.5px solid #FCA5A5",borderRadius:8,background:"#FEF2F2",color:"#DC2626",fontSize:14,cursor:"pointer",padding:0}}>×</button>
+                          </div>
+                        ))}
+                        {links.length>0 && links.length<3 && (
+                          <button onClick={addLink} style={{padding:"6px 10px",border:"1.5px dashed #D1C9BE",borderRadius:8,background:"transparent",color:"#9CA3AF",fontSize:12,fontWeight:600,cursor:"pointer",alignSelf:"flex-start"}}>+ Add another link</button>
+                        )}
+                      </div>
                     );
-                  })() : (
-                    <div style={{fontSize:12,color:"#9CA3AF",fontStyle:"italic",padding:"9px 0"}}>No document linked</div>
-                  )
-                )}
+                  }
+                  // User view
+                  const links = (form.documentLinks||[]).filter(d=>d.url);
+                  if (links.length===0) return <div style={{fontSize:12,color:"#9CA3AF",fontStyle:"italic",padding:"9px 0"}}>No document linked</div>;
+                  return (
+                    <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                      {links.map((d,i)=>(
+                        <a key={i} href={d.url} target="_blank" rel="noopener noreferrer" style={{display:"inline-flex",alignItems:"center",gap:8,padding:"9px 12px",border:"1.5px solid #E5E0D8",borderRadius:8,fontSize:13,color:"#2563EB",textDecoration:"none",background:"#FAFAF8"}}>
+                          <span>{linkIcon(d.url)}</span>
+                          <span style={{fontWeight:600}}>{d.name||autoName(d.url)}</span>
+                        </a>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
               {editId !== null && (() => {
                 const j = jobs.find(x => x.id === editId);
