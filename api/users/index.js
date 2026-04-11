@@ -13,18 +13,18 @@ const DEFAULT_USERS = [
   { name: "Allan",        email: "allan@velcorp.com",                    code: "5678", role: "admin" },
   { name: "Admin",        email: "apptestportal@outlook.com",            code: "9012", role: "admin" },
   { name: "Sadmin",       email: "sadmin@apptestportal.onmicrosoft.com", code: "3456", role: "admin" },
-  { name: "Adam Clarke",  email: "adam.c@topcon.com.au",                 code: "1001", role: "user" },
-  { name: "Ben Torres",   email: "ben.t@topcon.com.au",                  code: "1002", role: "user" },
-  { name: "Chris Ray",    email: "chris.r@topcon.com.au",                code: "1003", role: "user" },
-  { name: "Dan Smith",    email: "dan.s@topcon.com.au",                  code: "1004", role: "user" },
-  { name: "Ed Walsh",     email: "ed.w@topcon.com.au",                   code: "1005", role: "user" },
-  { name: "Frank Li",     email: "frank.l@topcon.com.au",                code: "1006", role: "user" },
-  { name: "Gary Hunt",    email: "gary.h@topcon.com.au",                 code: "2001", role: "user" },
-  { name: "Harry Fox",    email: "harry.f@topcon.com.au",                code: "2002", role: "user" },
-  { name: "Ivan Marsh",   email: "ivan.m@topcon.com.au",                 code: "2003", role: "user" },
-  { name: "Jake Owen",    email: "jake.o@topcon.com.au",                 code: "2004", role: "user" },
-  { name: "Kyle Park",    email: "kyle.p@topcon.com.au",                 code: "2005", role: "user" },
-  { name: "Leo James",    email: "leo.j@topcon.com.au",                  code: "2006", role: "user" },
+  { name: "Adam Clarke",  email: "adam.c@topcon.com",                    code: "1001", role: "user" },
+  { name: "Ben Torres",   email: "ben.t@topcon.com",                     code: "1002", role: "user" },
+  { name: "Chris Ray",    email: "chris.r@topcon.com",                   code: "1003", role: "user" },
+  { name: "Dan Smith",    email: "dan.s@topcon.com",                     code: "1004", role: "user" },
+  { name: "Ed Walsh",     email: "ed.w@topcon.com",                      code: "1005", role: "user" },
+  { name: "Frank Li",     email: "frank.l@topcon.com",                   code: "1006", role: "user" },
+  { name: "Gary Hunt",    email: "gary.h@topcon.com",                    code: "2001", role: "user" },
+  { name: "Harry Fox",    email: "harry.f@topcon.com",                   code: "2002", role: "user" },
+  { name: "Ivan Marsh",   email: "ivan.m@topcon.com",                    code: "2003", role: "user" },
+  { name: "Jake Owen",    email: "jake.o@topcon.com",                    code: "2004", role: "user" },
+  { name: "Kyle Park",    email: "kyle.p@topcon.com",                    code: "2005", role: "user" },
+  { name: "Leo James",    email: "leo.j@topcon.com",                     code: "2006", role: "user" },
 ];
 
 function safeKey(email) {
@@ -47,8 +47,36 @@ function fromEntity(e) {
 
 async function seedIfEmpty(client) {
   const it = client.listEntities({ queryOptions: { filter: `PartitionKey eq '${PARTITION}'` } });
-  for await (const _ of it) return; // has at least one
-  for (const u of DEFAULT_USERS) await client.upsertEntity(toEntity(u), "Replace");
+  let count = 0;
+  for await (const _ of it) { count++; break; }
+  if (count === 0) {
+    for (const u of DEFAULT_USERS) await client.upsertEntity(toEntity(u), "Replace");
+  }
+}
+
+// One-time migration: rewrite any user with @topcon.com.au to @topcon.com.
+// Runs every call but is cheap and idempotent.
+let _migrationDone = false;
+async function migrateAuToCom(client) {
+  if (_migrationDone) return;
+  try {
+    const it = client.listEntities({ queryOptions: { filter: `PartitionKey eq '${PARTITION}'` } });
+    const toFix = [];
+    for await (const e of it) {
+      if (e.email && e.email.toLowerCase().endsWith("@topcon.com.au")) {
+        toFix.push(e);
+      }
+    }
+    for (const e of toFix) {
+      const newEmail = e.email.toLowerCase().replace(/@topcon\.com\.au$/, "@topcon.com");
+      // Delete old row, insert new row with new safeKey
+      try { await client.deleteEntity(PARTITION, e.rowKey); } catch (err) {}
+      await client.upsertEntity(toEntity({ name: e.name, email: newEmail, code: e.code, role: e.role }), "Replace");
+    }
+    _migrationDone = true;
+  } catch (err) {
+    // don't block on migration errors
+  }
 }
 
 module.exports = async function (context, req) {
@@ -70,6 +98,7 @@ module.exports = async function (context, req) {
     await ensureTables();
     const client = getClient("users");
     await seedIfEmpty(client);
+    await migrateAuToCom(client);
     const action = req.query.action;
 
     // LOGIN: anonymous, body { email, code }
@@ -107,6 +136,10 @@ module.exports = async function (context, req) {
         return ok(context, { migrated: body.length });
       }
       if (!body.email) return bad(context, "email required");
+      // If editing and email changed, delete old row first
+      if (body.oldEmail && body.oldEmail.toLowerCase() !== body.email.toLowerCase()) {
+        try { await client.deleteEntity(PARTITION, safeKey(body.oldEmail)); } catch (e) {}
+      }
       await client.upsertEntity(toEntity(body), "Replace");
       return ok(context, fromEntity(toEntity(body)));
     }

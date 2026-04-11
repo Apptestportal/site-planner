@@ -198,30 +198,68 @@ const emptyForm = { crew:"Topcon Builders", location:"", startDate:"", endDate:"
 
 
 function UserManagement({ currentUser }) {
-  const [users, setUsers]   = useState(loadUsers);
+  const [users, setUsers]   = useState([]);
+  const [loading, setLoading] = useState(true);
   const [newName, setNewName]   = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newCode, setNewCode]   = useState("");
   const [newRole, setNewRole]   = useState("user");
+  const [editIdx, setEditIdx] = useState(null);
+  const [editForm, setEditForm] = useState({name:"",email:"",code:"",role:"user"});
 
-  const addUser = () => {
+  useEffect(() => {
+    api.listUsers().then(u => { setUsers(u||[]); setLoading(false); }).catch(e => { console.error(e); setLoading(false); });
+  }, []);
+
+  const refresh = async () => {
+    try { const u = await api.listUsers(); setUsers(u||[]); } catch(e) { console.error(e); }
+  };
+
+  const addUser = async () => {
     if(!newName.trim()||!newEmail.trim()||!newCode.trim()){alert("Fill in all fields.");return;}
     if(users.find(u=>u.email.toLowerCase()===newEmail.toLowerCase().trim())){alert("Email already exists.");return;}
-    const updated=[...users,{name:newName.trim(),email:newEmail.toLowerCase().trim(),code:newCode.trim(),role:newRole}];
-    setUsers(updated);saveUsers(updated);
-    setNewName("");setNewEmail("");setNewCode("");setNewRole("user");
-    alert("User added successfully.");
+    try {
+      await api.saveUser({name:newName.trim(),email:newEmail.toLowerCase().trim(),code:newCode.trim(),role:newRole});
+      setNewName("");setNewEmail("");setNewCode("");setNewRole("user");
+      await refresh();
+    } catch(e) { alert("Failed to add user: "+e.message); }
   };
 
-  const toggleRole = (i) => {
-    const updated=users.map((u,j)=>j===i?{...u,role:u.role==="admin"?"user":"admin"}:u);
-    setUsers(updated);saveUsers(updated);
+  const startEdit = (i) => {
+    const u = users[i];
+    setEditIdx(i);
+    setEditForm({name:u.name,email:u.email,code:u.code,role:u.role,_oldEmail:u.email});
+  };
+  const cancelEdit = () => { setEditIdx(null); };
+  const saveEdit = async () => {
+    if(!editForm.name.trim()||!editForm.email.trim()||!editForm.code.trim()){alert("Fill in all fields.");return;}
+    try {
+      await api.saveUser({
+        name: editForm.name.trim(),
+        email: editForm.email.toLowerCase().trim(),
+        code: editForm.code.trim(),
+        role: editForm.role,
+        oldEmail: editForm._oldEmail
+      });
+      setEditIdx(null);
+      await refresh();
+    } catch(e) { alert("Failed to save: "+e.message); }
   };
 
-  const removeUser = (i) => {
+  const toggleRole = async (i) => {
+    const u = users[i];
+    try {
+      await api.saveUser({...u, role: u.role==="admin"?"user":"admin"});
+      await refresh();
+    } catch(e) { alert("Failed: "+e.message); }
+  };
+
+  const removeUser = async (i) => {
     if(!window.confirm("Remove "+users[i].name+"?"))return;
-    const updated=users.filter((_,j)=>j!==i);
-    setUsers(updated);saveUsers(updated);
+    try {
+      await api.deleteUserApi(users[i].email);
+      await refresh();
+    } catch(e) { alert("Failed: "+e.message); }
   };
 
   return(
@@ -231,17 +269,43 @@ function UserManagement({ currentUser }) {
         <div style={{fontSize:14,fontWeight:800,color:"#F9F7F4"}}>App Access Management</div>
         <span style={{fontSize:10,background:"#374151",color:"#9CA3AF",padding:"2px 8px",borderRadius:6,fontWeight:600}}>ADMIN ONLY</span>
       </div>
+      {loading && <div style={{fontSize:12,color:"#9CA3AF",padding:"8px 0"}}>Loading users…</div>}
       {users.map((u,i)=>(
-        <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"#111827",borderRadius:10,marginBottom:6}}>
-          <div style={{flex:1}}>
-            <div style={{fontSize:13,fontWeight:700,color:"#F9F7F4"}}>{u.name} <span style={{fontSize:11,color:"#6B7280"}}>— {u.email}</span></div>
-            <div style={{fontSize:11,color:u.role==="admin"?"#22C55E":"#6B9E7A",marginTop:2}}>{u.role==="admin"?"👑 Admin":"👤 User"} · Code: {u.code}</div>
-          </div>
-          <button onClick={()=>toggleRole(i)} style={{padding:"4px 10px",border:"1px solid #374151",borderRadius:6,background:"#1F2937",color:"#9CA3AF",fontSize:11,cursor:"pointer"}}>
-            Make {u.role==="admin"?"User":"Admin"}
-          </button>
-          {u.email!==currentUser.email&&(
-            <button onClick={()=>removeUser(i)} style={{padding:"4px 10px",border:"1px solid #7F1D1D",borderRadius:6,background:"#450A0A",color:"#FCA5A5",fontSize:11,cursor:"pointer"}}>Remove</button>
+        <div key={u.email} style={{padding:"10px 12px",background:"#111827",borderRadius:10,marginBottom:6}}>
+          {editIdx === i ? (
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+                <input value={editForm.name} onChange={e=>setEditForm(p=>({...p,name:e.target.value}))} placeholder="Name"
+                  style={{border:"1.5px solid #374151",borderRadius:6,padding:"6px 8px",fontSize:12,background:"#1F2937",color:"#F9F7F4",outline:"none"}}/>
+                <input value={editForm.email} onChange={e=>setEditForm(p=>({...p,email:e.target.value}))} placeholder="Email"
+                  style={{border:"1.5px solid #374151",borderRadius:6,padding:"6px 8px",fontSize:12,background:"#1F2937",color:"#F9F7F4",outline:"none"}}/>
+                <input value={editForm.code} onChange={e=>setEditForm(p=>({...p,code:e.target.value}))} placeholder="Code"
+                  style={{border:"1.5px solid #374151",borderRadius:6,padding:"6px 8px",fontSize:12,background:"#1F2937",color:"#F9F7F4",outline:"none"}}/>
+                <select value={editForm.role} onChange={e=>setEditForm(p=>({...p,role:e.target.value}))}
+                  style={{border:"1.5px solid #374151",borderRadius:6,padding:"6px 8px",fontSize:12,background:"#1F2937",color:"#F9F7F4",outline:"none"}}>
+                  <option value="user">👤 User</option>
+                  <option value="admin">👑 Admin</option>
+                </select>
+              </div>
+              <div style={{display:"flex",gap:6,justifyContent:"flex-end"}}>
+                <button onClick={cancelEdit} style={{padding:"5px 12px",border:"1px solid #374151",borderRadius:6,background:"#1F2937",color:"#9CA3AF",fontSize:11,cursor:"pointer"}}>Cancel</button>
+                <button onClick={saveEdit} style={{padding:"5px 12px",border:"none",borderRadius:6,background:"#22C55E",color:"#fff",fontSize:11,fontWeight:700,cursor:"pointer"}}>Save</button>
+              </div>
+            </div>
+          ) : (
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,fontWeight:700,color:"#F9F7F4"}}>{u.name} <span style={{fontSize:11,color:"#6B7280"}}>— {u.email}</span></div>
+                <div style={{fontSize:11,color:u.role==="admin"?"#22C55E":"#6B9E7A",marginTop:2}}>{u.role==="admin"?"👑 Admin":"👤 User"} · Code: {u.code}</div>
+              </div>
+              <button onClick={()=>startEdit(i)} style={{padding:"4px 10px",border:"1px solid #374151",borderRadius:6,background:"#1F2937",color:"#9CA3AF",fontSize:11,cursor:"pointer"}}>Edit</button>
+              <button onClick={()=>toggleRole(i)} style={{padding:"4px 10px",border:"1px solid #374151",borderRadius:6,background:"#1F2937",color:"#9CA3AF",fontSize:11,cursor:"pointer"}}>
+                Make {u.role==="admin"?"User":"Admin"}
+              </button>
+              {u.email!==currentUser.email&&(
+                <button onClick={()=>removeUser(i)} style={{padding:"4px 10px",border:"1px solid #7F1D1D",borderRadius:6,background:"#450A0A",color:"#FCA5A5",fontSize:11,cursor:"pointer"}}>Remove</button>
+              )}
+            </div>
           )}
         </div>
       ))}
@@ -553,9 +617,12 @@ function SitePlanner({ currentUser, onLogout }) {
       <div style={s_hdr}>
         <div style={{maxWidth:1400,margin:"0 auto",padding:"0 20px"}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",paddingTop:18}}>
-            <div>
-              <div style={{fontSize:24,fontWeight:800,letterSpacing:-0.5}}>Site Planner</div>
-              <div style={{fontSize:11,color:"#6B9E7A",letterSpacing:2,marginTop:2}}>CONSTRUCTION SCHEDULER</div>
+            <div style={{display:"flex",alignItems:"center",gap:14}}>
+              <div style={{fontSize:38,lineHeight:1}}>🏗️</div>
+              <div>
+                <div style={{fontSize:24,fontWeight:800,letterSpacing:-0.5}}>Site Planner</div>
+                <div style={{fontSize:11,color:"#6B9E7A",letterSpacing:2,marginTop:2}}>CONSTRUCTION SCHEDULER</div>
+              </div>
             </div>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
               <button onClick={()=>openAdd()} style={{background:"#22C55E",color:"#fff",border:"none",padding:"10px 20px",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer"}}>+ New Job</button>
