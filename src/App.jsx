@@ -1,4 +1,23 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
+
+// ── Persistence helpers ───────────────────────────────────────────────────────
+const PERSIST_KEYS = {
+  jobs: "siteplanner_jobs_v1",
+  nextId: "siteplanner_nextId_v1",
+  workers: "siteplanner_workers_v1",
+  leave: "siteplanner_leave_v1",
+  leaveNextId: "siteplanner_leaveNextId_v1",
+};
+function loadPersisted(key, fallback) {
+  try {
+    const s = localStorage.getItem(key);
+    if (s) return JSON.parse(s);
+  } catch(e) {}
+  return typeof fallback === "function" ? fallback() : fallback;
+}
+function savePersisted(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch(e) {}
+}
 
 // ── User list with access codes ───────────────────────────────────────────────
 // Format: { name, email, code, role: "admin" | "user" }
@@ -246,9 +265,9 @@ function UserManagement({ currentUser }) {
 }
 
 function SitePlanner({ currentUser, onLogout }) {
-  const [jobs, setJobs]     = useState(buildInitJobs);
-  const [nextId, setNextId] = useState(9);
-  const [workers, setWorkers] = useState(initWorkers);
+  const [jobs, setJobs]     = useState(()=>loadPersisted(PERSIST_KEYS.jobs, buildInitJobs));
+  const [nextId, setNextId] = useState(()=>loadPersisted(PERSIST_KEYS.nextId, 9));
+  const [workers, setWorkers] = useState(()=>loadPersisted(PERSIST_KEYS.workers, initWorkers));
   const [tab, setTab]       = useState("schedule");
   const [weekOffset, setWeekOffset]   = useState(0);
   const [monthOffset, setMonthOffset] = useState(0);
@@ -259,8 +278,8 @@ function SitePlanner({ currentUser, onLogout }) {
   const [dayPopup, setDayPopup]       = useState(null);
   const [expandedWorker, setExpandedWorker] = useState(null);
   const [monthCrewFilter, setMonthCrewFilter] = useState("All");
-  const [leave, setLeave] = useState([]);
-  const [leaveNextId, setLeaveNextId] = useState(1);
+  const [leave, setLeave] = useState(()=>loadPersisted(PERSIST_KEYS.leave, []));
+  const [leaveNextId, setLeaveNextId] = useState(()=>loadPersisted(PERSIST_KEYS.leaveNextId, 1));
   const [leaveForm, setLeaveForm] = useState({crew:"Topcon Builders",workerName:"",startDate:"",endDate:"",reason:""});
   const [leaveFilter, setLeaveFilter] = useState("All");
   const [jobListPeriod, setJobListPeriod] = useState("week");
@@ -279,6 +298,13 @@ function SitePlanner({ currentUser, onLogout }) {
   const threadPhotoRef = useRef();
   const poInputRef = useRef();
   const photoInputRef = useRef();
+
+  // Persist on change
+  useEffect(()=>savePersisted(PERSIST_KEYS.jobs, jobs), [jobs]);
+  useEffect(()=>savePersisted(PERSIST_KEYS.nextId, nextId), [nextId]);
+  useEffect(()=>savePersisted(PERSIST_KEYS.workers, workers), [workers]);
+  useEffect(()=>savePersisted(PERSIST_KEYS.leave, leave), [leave]);
+  useEffect(()=>savePersisted(PERSIST_KEYS.leaveNextId, leaveNextId), [leaveNextId]);
 
   const crewKeys = Object.keys(CREW_STYLE);
   const C = (crew) => CREW_STYLE[crew] || CREW_STYLE["Topcon Builders"];
@@ -408,7 +434,7 @@ function SitePlanner({ currentUser, onLogout }) {
             </div>
           </div>
           <div style={{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:10,marginTop:8}}>
-            <span style={{fontSize:13,fontWeight:600,color:"#374151"}}>👷‍♂️ {currentUser.name}</span>
+            <span style={{fontSize:13,fontWeight:700,color:"#FFFFFF",background:"rgba(255,255,255,0.12)",padding:"5px 12px",borderRadius:14,border:"1px solid rgba(255,255,255,0.25)"}}>👷‍♂️ {currentUser.name}</span>
             <button onClick={onLogout} style={{background:"#fff",color:"#DC2626",border:"1.5px solid #FCA5A5",padding:"6px 12px",borderRadius:6,fontSize:12,fontWeight:700,cursor:"pointer"}}>Log out</button>
           </div>
           <div style={{display:"flex",gap:2,marginTop:16,flexWrap:"wrap"}}>
@@ -900,12 +926,27 @@ function SitePlanner({ currentUser, onLogout }) {
                       style={{flex:1,border:"1.5px solid #E5E0D8",borderRadius:8,padding:"9px 12px",fontSize:13,boxSizing:"border-box",outline:"none"}}/>
                   </div>
                 ) : (
-                  form.documentLink ? (
-                    <a href={form.documentLink} target="_blank" rel="noopener noreferrer" style={{display:"inline-flex",alignItems:"center",gap:8,padding:"9px 12px",border:"1.5px solid #E5E0D8",borderRadius:8,fontSize:13,color:"#2563EB",textDecoration:"none",background:"#FAFAF8"}}>
-                      <span>{(()=>{const u=form.documentLink.toLowerCase();if(u.includes("sharepoint")||u.includes("office.com"))return"📊";if(u.includes("dropbox"))return"📦";if(u.includes("google")||u.includes("docs.google")||u.includes("drive.google"))return"🟢";return"🔗";})()}</span>
-                      <span style={{fontWeight:600}}>{form.documentName||"Open document"}</span>
-                    </a>
-                  ) : (
+                  form.documentLink ? (() => {
+                    const u = form.documentLink.toLowerCase();
+                    const icon = (u.includes("sharepoint")||u.includes("office.com")) ? "📊"
+                      : u.includes("dropbox") ? "📦"
+                      : (u.includes("google")||u.includes("docs.google")||u.includes("drive.google")) ? "🟢"
+                      : "🔗";
+                    let displayName = form.documentName;
+                    if (!displayName) {
+                      try {
+                        const path = form.documentLink.split("?")[0].split("#")[0];
+                        const last = path.split("/").filter(Boolean).pop() || "Open document";
+                        displayName = decodeURIComponent(last).replace(/\.[^.]+$/, "");
+                      } catch(e) { displayName = "Open document"; }
+                    }
+                    return (
+                      <a href={form.documentLink} target="_blank" rel="noopener noreferrer" style={{display:"inline-flex",alignItems:"center",gap:8,padding:"9px 12px",border:"1.5px solid #E5E0D8",borderRadius:8,fontSize:13,color:"#2563EB",textDecoration:"none",background:"#FAFAF8"}}>
+                        <span>{icon}</span>
+                        <span style={{fontWeight:600}}>{displayName}</span>
+                      </a>
+                    );
+                  })() : (
                     <div style={{fontSize:12,color:"#9CA3AF",fontStyle:"italic",padding:"9px 0"}}>No document linked</div>
                   )
                 )}
