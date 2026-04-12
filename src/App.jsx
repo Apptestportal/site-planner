@@ -612,9 +612,99 @@ function SitePlanner({ currentUser, onLogout }) {
 
   if (dataLoading) {
     return (
-      <div style={{minHeight:"100vh",background:"#111827",display:"flex",alignItems:"center",justifyContent:"center",color:"#F9F7F4",fontFamily:"system-ui,sans-serif",flexDirection:"column",gap:16}}>
-        <style>{`@keyframes craneLift { 0%,100% { transform: translateY(8px); } 50% { transform: translateY(-12px); } }`}</style>
-        <div style={{fontSize:48,animation:"craneLift 2.4s ease-in-out infinite"}}>🏗️</div>
+      <div style={{minHeight:"100vh",background:"#111827",display:"flex",alignItems:"center",justifyContent:"center",color:"#F9F7F4",fontFamily:"system-ui,sans-serif",flexDirection:"column",gap:18}}>
+        <svg width="240" height="300" viewBox="0 0 240 300" role="img" aria-label="Loading">
+          <title>Construction crane lifting an I-beam with Topcon Builders banner</title>
+          <g transform="translate(8,12) scale(0.9)">
+            <g>
+              <rect x="50" y="270" width="80" height="6" fill="#4B5563"/>
+              <rect x="55" y="264" width="70" height="6" fill="#6B7280"/>
+            </g>
+            <g stroke="#FBBF24" strokeWidth="2.8" fill="none" strokeLinecap="round">
+              <line x1="75" y1="60" x2="75" y2="264"/>
+              <line x1="105" y1="60" x2="105" y2="264"/>
+              <line x1="75" y1="60" x2="105" y2="60"/>
+              <line x1="75" y1="84" x2="105" y2="84"/>
+              <line x1="75" y1="108" x2="105" y2="108"/>
+              <line x1="75" y1="132" x2="105" y2="132"/>
+              <line x1="75" y1="156" x2="105" y2="156"/>
+              <line x1="75" y1="180" x2="105" y2="180"/>
+              <line x1="75" y1="204" x2="105" y2="204"/>
+              <line x1="75" y1="228" x2="105" y2="228"/>
+              <line x1="75" y1="264" x2="105" y2="264"/>
+            </g>
+            <g stroke="#FBBF24" strokeWidth="2.2" fill="none" strokeLinecap="round">
+              <line x1="75" y1="60" x2="105" y2="84"/>
+              <line x1="105" y1="60" x2="75" y2="84"/>
+              <line x1="75" y1="84" x2="105" y2="108"/>
+              <line x1="105" y1="84" x2="75" y2="108"/>
+              <line x1="75" y1="108" x2="105" y2="132"/>
+              <line x1="105" y1="108" x2="75" y2="132"/>
+              <line x1="75" y1="132" x2="105" y2="156"/>
+              <line x1="105" y1="132" x2="75" y2="156"/>
+              <line x1="75" y1="156" x2="105" y2="180"/>
+              <line x1="105" y1="156" x2="75" y2="180"/>
+              <line x1="75" y1="180" x2="105" y2="204"/>
+              <line x1="105" y1="180" x2="75" y2="204"/>
+              <line x1="75" y1="204" x2="105" y2="228"/>
+              <line x1="105" y1="204" x2="75" y2="228"/>
+              <line x1="75" y1="228" x2="105" y2="264"/>
+              <line x1="105" y1="228" x2="75" y2="264"/>
+            </g>
+            <g stroke="#92400E" strokeWidth="0.8">
+              <rect x="78" y="42" width="24" height="18" fill="#FBBF24"/>
+              <rect x="82" y="46" width="16" height="8" fill="#86C5F2" stroke="#1E40AF" strokeWidth="0.6"/>
+            </g>
+            <g stroke="#FBBF24" strokeWidth="2.8" fill="none" strokeLinecap="round">
+              <line x1="50" y1="42" x2="200" y2="42"/>
+              <line x1="50" y1="60" x2="200" y2="60"/>
+              <line x1="50" y1="42" x2="50" y2="60"/>
+              <line x1="200" y1="42" x2="200" y2="60"/>
+            </g>
+            <g stroke="#FBBF24" strokeWidth="2" fill="none" strokeLinecap="round">
+              <line x1="100" y1="42" x2="115" y2="60"/>
+              <line x1="115" y1="42" x2="100" y2="60"/>
+              <line x1="115" y1="42" x2="130" y2="60"/>
+              <line x1="130" y1="42" x2="115" y2="60"/>
+              <line x1="130" y1="42" x2="145" y2="60"/>
+              <line x1="145" y1="42" x2="130" y2="60"/>
+              <line x1="145" y1="42" x2="160" y2="60"/>
+              <line x1="160" y1="42" x2="145" y2="60"/>
+              <line x1="160" y1="42" x2="175" y2="60"/>
+              <line x1="175" y1="42" x2="160" y2="60"/>
+              <line x1="175" y1="42" x2="190" y2="60"/>
+              <line x1="190" y1="42" x2="175" y2="60"/>
+              <line x1="190" y1="42" x2="200" y2="60"/>
+              <line x1="80" y1="42" x2="65" y2="60"/>
+              <line x1="65" y1="42" x2="80" y2="60"/>
+              <line x1="65" y1="42" x2="50" y2="60"/>
+              <line x1="50" y1="42" x2="65" y2="60"/>
+            </g>
+            <line x1="90" y1="32" x2="155" y2="42" stroke="#9CA3AF" strokeWidth="1.4"/>
+            <line x1="90" y1="32" x2="60" y2="42" stroke="#9CA3AF" strokeWidth="1.4"/>
+            <rect x="48" y="34" width="6" height="8" fill="#374151" stroke="#1F2937" strokeWidth="0.6"/>
+            <rect x="170" y="60" width="14" height="5" fill="#4B5563" stroke="#1F2937" strokeWidth="0.5"/>
+            <line x1="177" y1="65" x2="177" y2="65" stroke="#D1D5DB" strokeWidth="1.6">
+              <animate attributeName="y2" values="140;195;140" dur="2.8s" repeatCount="indefinite" calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+            </line>
+          </g>
+          <g>
+            <animateTransform attributeName="transform" type="translate" values="0,126;0,176;0,126" dur="2.8s" repeatCount="indefinite" calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+            <path d="M 162 0 L 172 0 L 172 6 L 168 6 L 168 14 Q 168 22 174 22 Q 180 22 180 14 L 180 12 L 176 12 L 176 14 Q 176 18 174 18 Q 172 18 172 14 L 172 6 L 162 6 Z" fill="#374151" stroke="#1F2937" strokeWidth="0.6"/>
+            <rect x="140" y="26" width="60" height="6" fill="#DC2626" stroke="#7F1D1D" strokeWidth="0.6"/>
+            <rect x="140" y="32" width="60" height="3" fill="#7F1D1D"/>
+            <rect x="145" y="26" width="50" height="2" fill="#991B1B"/>
+            <rect x="128" y="35" width="84" height="44" fill="#000000" stroke="#FBBF24" strokeWidth="0.8"/>
+            <g transform="translate(133,41)">
+              <path d="M 0 22 Q 4 4 14 4 L 14 11 Q 8 11 6 22 Z" fill="#A3E635"/>
+              <path d="M 0 27 Q 6 14 18 14 L 18 21 Q 11 21 8 27 Z" fill="#9CA3AF"/>
+              <path d="M 0 32 Q 8 22 22 22 L 22 30 Q 14 30 11 32 Z" fill="#E5E7EB"/>
+            </g>
+            <text x="160" y="51" fontFamily="Arial Black, sans-serif" fontSize="11" fontWeight="900" fill="#FFFFFF" letterSpacing="0.5">TOPCON</text>
+            <text x="160" y="62" fontFamily="Arial, sans-serif" fontSize="7" fontWeight="700" fill="#9CA3AF" letterSpacing="1">BUILDERS</text>
+            <text x="170" y="73" fontFamily="Arial, sans-serif" fontSize="5" fill="#A3E635" fontStyle="italic" textAnchor="middle">building an evolution</text>
+          </g>
+        </svg>
         <div style={{fontSize:14,color:"#9CA3AF",letterSpacing:2}}>LOADING SITE PLANNER…</div>
         {dataError && <div style={{fontSize:13,color:"#FCA5A5",maxWidth:400,textAlign:"center"}}>{dataError}</div>}
       </div>
@@ -668,13 +758,13 @@ function SitePlanner({ currentUser, onLogout }) {
               <button onClick={()=>setWeekOffset(w=>w+1)} style={{background:"#fff",border:"1.5px solid #D1C9BE",borderRadius:8,width:34,height:34,cursor:"pointer",fontSize:18}}>›</button>
               {weekOffset!==0 && <button onClick={()=>setWeekOffset(0)} style={{background:"#111827",color:"#fff",border:"none",borderRadius:8,padding:"6px 14px",fontSize:12,cursor:"pointer",fontWeight:600}}>Today</button>}
             </div>
-            <div style={{display:"flex",gap:5,background:"#fff",borderRadius:10,padding:4,boxShadow:"0 1px 4px rgba(0,0,0,0.07)"}}>
-              <button onClick={()=>setCrewFilter("All")} style={{padding:"7px 14px",borderRadius:7,border:"none",cursor:"pointer",background:crewFilter==="All"?"#111827":"transparent",color:crewFilter==="All"?"#fff":"#6B7280",fontWeight:700,fontSize:13}}>Both</button>
+            <div style={{display:"flex",gap:4,background:"#1F2937",borderRadius:10,padding:4}}>
+              <button onClick={()=>setCrewFilter("All")} style={{padding:"8px 14px",borderRadius:6,border:"none",cursor:"pointer",background:crewFilter==="All"?"#fff":"transparent",color:crewFilter==="All"?"#111827":"#9CA3AF",fontWeight:700,fontSize:13}}>Both</button>
               {crewKeys.map(crew=>{
                 const cs=C(crew);
                 const sel=crewFilter===crew;
                 return (
-                  <button key={crew} onClick={()=>setCrewFilter(crew)} style={{padding:"7px 14px",borderRadius:7,border:"none",cursor:"pointer",background:sel?cs.color:"transparent",color:sel?"#fff":cs.color,fontWeight:700,fontSize:13,letterSpacing:0}}>
+                  <button key={crew} onClick={()=>setCrewFilter(crew)} style={{padding:"8px 14px",borderRadius:6,border:"none",cursor:"pointer",background:cs.color,color:"#fff",fontWeight:700,fontSize:13,letterSpacing:0,opacity:sel||crewFilter==="All"?1:0.55,boxShadow:sel?"0 0 0 2px #fff inset":"none"}}>
                     {crew}
                   </button>
                 );
