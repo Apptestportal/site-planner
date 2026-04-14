@@ -240,7 +240,13 @@ function getMonday(date) {
 function addDays(date, n) { const d = new Date(date); d.setDate(d.getDate() + n); return d; }
 function fmtDate(date) { const dd=String(date.getDate()).padStart(2,"0"); const mm=String(date.getMonth()+1).padStart(2,"0"); return `${dd}/${mm}`; }
 function fmtDateYY(date) { const dd=String(date.getDate()).padStart(2,"0"); const mm=String(date.getMonth()+1).padStart(2,"0"); const yy=String(date.getFullYear()).slice(-2); return `${dd}/${mm}/${yy}`; }
-function dateKey(date) { return date.toISOString().slice(0,10); }
+function dateKey(date) {
+  const d = date instanceof Date ? date : new Date(date);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth()+1).padStart(2,"0");
+  const dd = String(d.getDate()).padStart(2,"0");
+  return `${yyyy}-${mm}-${dd}`;
+}
 
 function buildInitJobs() {
   const mon = getMonday(new Date());
@@ -922,7 +928,7 @@ function SitePlanner({ currentUser, onLogout }) {
                                 const isHalf = period === "am" || period === "pm";
                                 const halfColor = period === "am" ? "#38BDF8" : "#0A0A0A";
                                 const halfAccent = period === "am" ? "#0369A1" : "#0A0A0A";
-                                if (isHalf && isFirst) {
+                                if (isHalf) {
                                   return (
                                     <div onClick={()=>openEdit(job)} style={{position:"relative",border:`2px solid ${halfColor}`,borderRadius:8,height:"calc(100% - 8px)",boxSizing:"border-box",cursor:"pointer",minHeight:56,overflow:"hidden",background:"#fff"}}>
                                       <svg width="100%" height="100%" viewBox="0 0 100 60" preserveAspectRatio="none" style={{position:"absolute",inset:0,display:"block"}}>
