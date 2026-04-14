@@ -86,7 +86,7 @@ function LoginScreen({ onLogin }) {
     <div style={{minHeight:"100vh",background:"#111827",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui,sans-serif",padding:20}}>
       <div style={{background:"#1F2937",borderRadius:20,padding:"48px 40px",width:"100%",maxWidth:420,boxShadow:"0 32px 80px rgba(0,0,0,0.5)"}}>
         <div style={{textAlign:"center",marginBottom:32}}>
-          <div style={{fontSize:48,marginBottom:12}}>🏗️</div>
+          <div style={{display:"flex",justifyContent:"center",marginBottom:8}}><StaticCrane width={80} height={100}/></div>
           <div style={{fontSize:26,fontWeight:800,color:"#F9F7F4",letterSpacing:-0.5}}>Site Planner</div>
           <div style={{fontSize:11,color:"#6B9E7A",letterSpacing:3,marginTop:4}}>CONSTRUCTION SCHEDULER</div>
           <div style={{fontSize:12,color:"#6B7280",marginTop:8}}>Topcon Builders & NQ Stripouts</div>
@@ -135,6 +135,73 @@ function LoginScreen({ onLogin }) {
 
 const TOPCON_LOGO = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='36' viewBox='0 0 120 36'%3E%3Crect width='120' height='36' fill='%231B2D5B' rx='4'/%3E%3Ctext x='60' y='24' font-family='Arial' font-size='13' font-weight='bold' fill='white' text-anchor='middle'%3ETOPCON BUILDERS%3C/text%3E%3C/svg%3E";
 const NQ_LOGO = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='36' viewBox='0 0 120 36'%3E%3Crect width='120' height='36' fill='%23C0121C' rx='4'/%3E%3Ctext x='60' y='24' font-family='Arial' font-size='13' font-weight='bold' fill='white' text-anchor='middle'%3ENQ STRIPOUTS%3C/text%3E%3C/svg%3E";
+
+function StaticCrane({ width, height }) {
+  return (
+    <svg width={width} height={height} viewBox="0 0 240 300" role="img" aria-label="Site Planner crane">
+      <title>Site Planner</title>
+      <g transform="translate(8,12) scale(0.9)">
+        <rect x="50" y="270" width="80" height="6" fill="#4B5563"/>
+        <rect x="55" y="264" width="70" height="6" fill="#6B7280"/>
+        <g stroke="#FBBF24" strokeWidth="2.8" fill="none" strokeLinecap="round">
+          <line x1="75" y1="60" x2="75" y2="264"/><line x1="105" y1="60" x2="105" y2="264"/>
+          <line x1="75" y1="60" x2="105" y2="60"/><line x1="75" y1="84" x2="105" y2="84"/>
+          <line x1="75" y1="108" x2="105" y2="108"/><line x1="75" y1="132" x2="105" y2="132"/>
+          <line x1="75" y1="156" x2="105" y2="156"/><line x1="75" y1="180" x2="105" y2="180"/>
+          <line x1="75" y1="204" x2="105" y2="204"/><line x1="75" y1="228" x2="105" y2="228"/>
+          <line x1="75" y1="264" x2="105" y2="264"/>
+        </g>
+        <g stroke="#FBBF24" strokeWidth="2.2" fill="none" strokeLinecap="round">
+          <line x1="75" y1="60" x2="105" y2="84"/><line x1="105" y1="60" x2="75" y2="84"/>
+          <line x1="75" y1="84" x2="105" y2="108"/><line x1="105" y1="84" x2="75" y2="108"/>
+          <line x1="75" y1="108" x2="105" y2="132"/><line x1="105" y1="108" x2="75" y2="132"/>
+          <line x1="75" y1="132" x2="105" y2="156"/><line x1="105" y1="132" x2="75" y2="156"/>
+          <line x1="75" y1="156" x2="105" y2="180"/><line x1="105" y1="156" x2="75" y2="180"/>
+          <line x1="75" y1="180" x2="105" y2="204"/><line x1="105" y1="180" x2="75" y2="204"/>
+          <line x1="75" y1="204" x2="105" y2="228"/><line x1="105" y1="204" x2="75" y2="228"/>
+          <line x1="75" y1="228" x2="105" y2="264"/><line x1="105" y1="228" x2="75" y2="264"/>
+        </g>
+        <rect x="78" y="42" width="24" height="18" fill="#FBBF24" stroke="#92400E" strokeWidth="0.8"/>
+        <rect x="82" y="46" width="16" height="8" fill="#86C5F2" stroke="#1E40AF" strokeWidth="0.6"/>
+        <g stroke="#FBBF24" strokeWidth="2.8" fill="none" strokeLinecap="round">
+          <line x1="50" y1="42" x2="200" y2="42"/><line x1="50" y1="60" x2="200" y2="60"/>
+          <line x1="50" y1="42" x2="50" y2="60"/><line x1="200" y1="42" x2="200" y2="60"/>
+        </g>
+        <g stroke="#FBBF24" strokeWidth="2" fill="none" strokeLinecap="round">
+          <line x1="100" y1="42" x2="115" y2="60"/><line x1="115" y1="42" x2="100" y2="60"/>
+          <line x1="115" y1="42" x2="130" y2="60"/><line x1="130" y1="42" x2="115" y2="60"/>
+          <line x1="130" y1="42" x2="145" y2="60"/><line x1="145" y1="42" x2="130" y2="60"/>
+          <line x1="145" y1="42" x2="160" y2="60"/><line x1="160" y1="42" x2="145" y2="60"/>
+          <line x1="160" y1="42" x2="175" y2="60"/><line x1="175" y1="42" x2="160" y2="60"/>
+          <line x1="175" y1="42" x2="190" y2="60"/><line x1="190" y1="42" x2="175" y2="60"/>
+          <line x1="190" y1="42" x2="200" y2="60"/>
+          <line x1="80" y1="42" x2="65" y2="60"/><line x1="65" y1="42" x2="80" y2="60"/>
+          <line x1="65" y1="42" x2="50" y2="60"/><line x1="50" y1="42" x2="65" y2="60"/>
+        </g>
+        <line x1="90" y1="32" x2="155" y2="42" stroke="#9CA3AF" strokeWidth="1.4"/>
+        <line x1="90" y1="32" x2="60" y2="42" stroke="#9CA3AF" strokeWidth="1.4"/>
+        <rect x="48" y="34" width="6" height="8" fill="#374151" stroke="#1F2937" strokeWidth="0.6"/>
+        <rect x="170" y="60" width="14" height="5" fill="#4B5563" stroke="#1F2937" strokeWidth="0.5"/>
+        <line x1="177" y1="65" x2="177" y2="120" stroke="#D1D5DB" strokeWidth="1.6"/>
+      </g>
+      <g transform="translate(0,126)">
+        <path d="M 162 0 L 172 0 L 172 6 L 168 6 L 168 14 Q 168 22 174 22 Q 180 22 180 14 L 180 12 L 176 12 L 176 14 Q 176 18 174 18 Q 172 18 172 14 L 172 6 L 162 6 Z" fill="#374151" stroke="#1F2937" strokeWidth="0.6"/>
+        <rect x="140" y="26" width="60" height="6" fill="#DC2626" stroke="#7F1D1D" strokeWidth="0.6"/>
+        <rect x="140" y="32" width="60" height="3" fill="#7F1D1D"/>
+        <rect x="145" y="26" width="50" height="2" fill="#991B1B"/>
+        <rect x="128" y="35" width="84" height="44" fill="#0A0A0A" stroke="#FBBF24" strokeWidth="0.8"/>
+        <g transform="translate(133,41)">
+          <path d="M 0 22 Q 4 4 14 4 L 14 11 Q 8 11 6 22 Z" fill="#A3E635"/>
+          <path d="M 0 27 Q 6 14 18 14 L 18 21 Q 11 21 8 27 Z" fill="#9CA3AF"/>
+          <path d="M 0 32 Q 8 22 22 22 L 22 30 Q 14 30 11 32 Z" fill="#E5E7EB"/>
+        </g>
+        <text x="160" y="51" fontFamily="Arial Black, sans-serif" fontSize="11" fontWeight="900" fill="#FAFAFA" letterSpacing="0.5">TOPCON</text>
+        <text x="160" y="62" fontFamily="Arial, sans-serif" fontSize="7" fontWeight="700" fill="#9CA3AF" letterSpacing="1">BUILDERS</text>
+        <text x="170" y="73" fontFamily="Arial, sans-serif" fontSize="5" fill="#A3E635" fontStyle="italic" textAnchor="middle">building an evolution</text>
+      </g>
+    </svg>
+  );
+}
 
 const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -708,13 +775,13 @@ function SitePlanner({ currentUser, onLogout }) {
             <rect x="140" y="26" width="60" height="6" fill="#DC2626" stroke="#7F1D1D" strokeWidth="0.6"/>
             <rect x="140" y="32" width="60" height="3" fill="#7F1D1D"/>
             <rect x="145" y="26" width="50" height="2" fill="#991B1B"/>
-            <rect x="128" y="35" width="84" height="44" fill="#000000" stroke="#FBBF24" strokeWidth="0.8"/>
+            <rect x="128" y="35" width="84" height="44" fill="#0A0A0A" stroke="#FBBF24" strokeWidth="0.8"/>
             <g transform="translate(133,41)">
               <path d="M 0 22 Q 4 4 14 4 L 14 11 Q 8 11 6 22 Z" fill="#A3E635"/>
               <path d="M 0 27 Q 6 14 18 14 L 18 21 Q 11 21 8 27 Z" fill="#9CA3AF"/>
               <path d="M 0 32 Q 8 22 22 22 L 22 30 Q 14 30 11 32 Z" fill="#E5E7EB"/>
             </g>
-            <text x="160" y="51" fontFamily="Arial Black, sans-serif" fontSize="11" fontWeight="900" fill="#FFFFFF" letterSpacing="0.5">TOPCON</text>
+            <text x="160" y="51" fontFamily="Arial Black, sans-serif" fontSize="11" fontWeight="900" fill="#FAFAFA" letterSpacing="0.5">TOPCON</text>
             <text x="160" y="62" fontFamily="Arial, sans-serif" fontSize="7" fontWeight="700" fill="#9CA3AF" letterSpacing="1">BUILDERS</text>
             <text x="170" y="73" fontFamily="Arial, sans-serif" fontSize="5" fill="#A3E635" fontStyle="italic" textAnchor="middle">building an evolution</text>
           </g>
@@ -733,7 +800,7 @@ function SitePlanner({ currentUser, onLogout }) {
         <div style={{maxWidth:1400,margin:"0 auto",padding:"0 20px"}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",paddingTop:18}}>
             <div style={{display:"flex",alignItems:"center",gap:14}}>
-              <div style={{fontSize:38,lineHeight:1}}>🏗️</div>
+              <StaticCrane width={50} height={62}/>
               <div>
                 <div style={{fontSize:24,fontWeight:800,letterSpacing:-0.5}}>Site Planner</div>
                 <div style={{fontSize:11,color:"#6B9E7A",letterSpacing:2,marginTop:2}}>CONSTRUCTION SCHEDULER</div>
@@ -850,18 +917,52 @@ function SitePlanner({ currentUser, onLogout }) {
                                   {workerLeave.reason&&<div style={{fontSize:10,color:"#B45309"}}>{workerLeave.reason}</div>}
                                 </div>
                               )}
-                              {job&&(
-                                <div onClick={()=>openEdit(job)} style={{background:isFirst?s.color:`${s.color}18`,border:`2px solid ${s.color}`,borderLeft:isFirst?`2px solid ${s.color}`:"none",borderRight:isLast?`2px solid ${s.color}`:"none",borderRadius:isFirst&&isLast?8:isFirst?"8px 0 0 8px":isLast?"0 8px 8px 0":0,padding:"6px 8px",height:"calc(100% - 8px)",boxSizing:"border-box",cursor:"pointer",display:"flex",flexDirection:"column",gap:3,minHeight:56}}>
-                                  {isFirst&&<div style={{fontSize:11,fontWeight:800,color:"#fff",lineHeight:1.3}}>{job.location}</div>}
-                                  {isFirst&&(
-                                    <div style={{display:"flex",gap:3,marginTop:"auto"}}>
-                                      {job.poFileName&&<span style={{fontSize:9,fontWeight:700,background:"#F59E0B",color:"#fff",borderRadius:4,padding:"0 4px"}}>PO</span>}
-                                      {job.crew==="NQ Stripouts"&&job.invoiced&&<span style={{fontSize:9,fontWeight:700,background:"#16A34A",color:"#fff",borderRadius:4,padding:"0 4px"}}>✓</span>}
+                              {job&&(() => {
+                                const period = jobPeriodOnDate(job, dk) || "full";
+                                const isHalf = period === "am" || period === "pm";
+                                const halfColor = period === "am" ? "#38BDF8" : "#0A0A0A";
+                                const halfAccent = period === "am" ? "#0369A1" : "#0A0A0A";
+                                if (isHalf && isFirst) {
+                                  return (
+                                    <div onClick={()=>openEdit(job)} style={{position:"relative",border:`2px solid ${halfColor}`,borderRadius:8,height:"calc(100% - 8px)",boxSizing:"border-box",cursor:"pointer",minHeight:56,overflow:"hidden",background:"#fff"}}>
+                                      <svg width="100%" height="100%" viewBox="0 0 100 60" preserveAspectRatio="none" style={{position:"absolute",inset:0,display:"block"}}>
+                                        {period==="am"
+                                          ? <polygon points="0,0 100,0 0,60" fill={halfColor}/>
+                                          : <polygon points="0,60 100,60 100,0" fill={halfColor}/>}
+                                      </svg>
+                                      {period==="am" ? (
+                                        <>
+                                          <div style={{position:"absolute",top:4,left:6,fontSize:11,fontWeight:800,color:"#fff",lineHeight:1.2,textShadow:"0 1px 2px rgba(0,0,0,0.15)",maxWidth:"70%"}}>{job.location}</div>
+                                          <div style={{position:"absolute",bottom:4,right:6,fontSize:10,fontWeight:800,color:halfAccent}}>AM</div>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <div style={{position:"absolute",top:4,left:6,fontSize:11,fontWeight:800,color:"#0A0A0A",lineHeight:1.2,maxWidth:"70%"}}>{job.location}</div>
+                                          <div style={{position:"absolute",bottom:4,right:6,fontSize:10,fontWeight:800,color:"#fff"}}>PM</div>
+                                        </>
+                                      )}
+                                      {isFirst&&(
+                                        <div style={{position:"absolute",bottom:4,left:6,display:"flex",gap:3}}>
+                                          {job.poFileName&&<span style={{fontSize:9,fontWeight:700,background:"#F59E0B",color:"#fff",borderRadius:4,padding:"0 4px"}}>PO</span>}
+                                          {job.crew==="NQ Stripouts"&&job.invoiced&&<span style={{fontSize:9,fontWeight:700,background:"#16A34A",color:"#fff",borderRadius:4,padding:"0 4px"}}>✓</span>}
+                                        </div>
+                                      )}
                                     </div>
-                                  )}
-                                  {!isFirst&&<div style={{fontSize:10,fontWeight:700,color:s.accent,opacity:0.6}}>{job.location.split("–")[0].trim()}</div>}
-                                </div>
-                              )}
+                                  );
+                                }
+                                return (
+                                  <div onClick={()=>openEdit(job)} style={{background:isFirst?s.color:`${s.color}18`,border:`2px solid ${s.color}`,borderLeft:isFirst?`2px solid ${s.color}`:"none",borderRight:isLast?`2px solid ${s.color}`:"none",borderRadius:isFirst&&isLast?8:isFirst?"8px 0 0 8px":isLast?"0 8px 8px 0":0,padding:"6px 8px",height:"calc(100% - 8px)",boxSizing:"border-box",cursor:"pointer",display:"flex",flexDirection:"column",gap:3,minHeight:56}}>
+                                    {isFirst&&<div style={{fontSize:11,fontWeight:800,color:"#fff",lineHeight:1.3}}>{job.location}</div>}
+                                    {isFirst&&(
+                                      <div style={{display:"flex",gap:3,marginTop:"auto"}}>
+                                        {job.poFileName&&<span style={{fontSize:9,fontWeight:700,background:"#F59E0B",color:"#fff",borderRadius:4,padding:"0 4px"}}>PO</span>}
+                                        {job.crew==="NQ Stripouts"&&job.invoiced&&<span style={{fontSize:9,fontWeight:700,background:"#16A34A",color:"#fff",borderRadius:4,padding:"0 4px"}}>✓</span>}
+                                      </div>
+                                    )}
+                                    {!isFirst&&<div style={{fontSize:10,fontWeight:700,color:s.accent,opacity:0.6}}>{job.location.split("–")[0].trim()}</div>}
+                                  </div>
+                                );
+                              })()}
                               {!job&&!workerLeave&&(
                                 <button onClick={()=>{setForm({...emptyForm,crew,startDate:dk,endDate:dk,days:[{date:dk,period:"full"}],workers:[worker.name]});setEditId(null);setShowModal(true);}}
                                   style={{width:"100%",height:"100%",minHeight:56,background:"transparent",border:"2px dashed #DEDADA",borderRadius:8,cursor:"pointer",color:"#C4B8AC",fontSize:20,display:"flex",alignItems:"center",justifyContent:"center"}}
@@ -920,9 +1021,16 @@ function SitePlanner({ currentUser, onLogout }) {
                   {dayJobs.map(job=>{
                     const s=C(job.crew);
                     const isStart=dateKey(new Date(job.startDate))===dk;
+                    const period = jobPeriodOnDate(job, dk) || "full";
+                    const isHalf = period !== "full";
+                    const halfColor = period === "am" ? "#38BDF8" : "#0A0A0A";
+                    const bg = isHalf ? halfColor : (isStart?s.color:s.light);
+                    const border = isHalf ? halfColor : s.color;
+                    const textColor = isHalf ? "#fff" : (isStart?"#fff":s.accent);
                     return (
-                      <div key={job.id} style={{background:isStart?s.color:s.light,border:`1px solid ${s.color}`,borderRadius:5,padding:"3px 5px",opacity:isStart?1:0.7}}>
-                        <div style={{fontSize:10,fontWeight:800,color:isStart?"#fff":s.accent,lineHeight:1.2}}>{job.location.split("–")[0].trim()}</div>
+                      <div key={job.id} style={{background:bg,border:`1px solid ${border}`,borderRadius:5,padding:"3px 5px",opacity:isHalf||isStart?1:0.7,display:"flex",justifyContent:"space-between",alignItems:"center",gap:4}}>
+                        <div style={{fontSize:10,fontWeight:800,color:textColor,lineHeight:1.2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{job.location.split("–")[0].trim()}</div>
+                        {isHalf&&<span style={{fontSize:8,fontWeight:900,color:textColor,flexShrink:0}}>{period.toUpperCase()}</span>}
                       </div>
                     );
                   })}
