@@ -205,6 +205,20 @@ function StaticCrane({ width, height }) {
 
 const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const TIME_SLOTS = (() => {
+  const out = [];
+  for (let h=6; h<=18; h++) {
+    for (let m=0; m<60; m+=15) {
+      if (h===18 && m>0) break;
+      const value = `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
+      const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+      const ampm = h < 12 ? "AM" : "PM";
+      const label = `${h12}:${String(m).padStart(2,"0")} ${ampm}`;
+      out.push({ value, label });
+    }
+  }
+  return out;
+})();
 
 const CREW_STYLE = {
   "Topcon Builders": { color: "#1B2D5B", light: "#E8ECF5", accent: "#0F1A36", tag: "TOPCON" },
@@ -443,6 +457,12 @@ function SitePlanner({ currentUser, onLogout }) {
   const [threadText, setThreadText] = useState("");
   const [threadPhoto, setThreadPhoto] = useState(null);
   const [threadCaption, setThreadCaption] = useState("");
+  const [reportSub, setReportSub] = useState("hoursWorker");
+  const [reportRange, setReportRange] = useState(() => {
+    const end = new Date();
+    const start = new Date(); start.setDate(start.getDate()-30);
+    return { start: dateKey(start), end: dateKey(end) };
+  });
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminPinEntry, setAdminPinEntry] = useState("");
   const [showAdminPin, setShowAdminPin] = useState(false);
@@ -693,7 +713,12 @@ function SitePlanner({ currentUser, onLogout }) {
 
   const fmtTs = (isoStr) => {
     const d = new Date(isoStr);
-    return d.toLocaleDateString("en-AU",{day:"numeric",month:"short"}) + " " + d.toLocaleTimeString("en-AU",{hour:"2-digit",minute:"2-digit"});
+    const dd = String(d.getDate()).padStart(2,"0");
+    const mm = String(d.getMonth()+1).padStart(2,"0");
+    const yy = String(d.getFullYear()).slice(-2);
+    const hh = String(d.getHours()).padStart(2,"0");
+    const mi = String(d.getMinutes()).padStart(2,"0");
+    return `${dd}/${mm}/${yy} ${hh}:${mi}`;
   };
 
   const s_hdr = {background:"#111827",color:"#F9F7F4"};
@@ -822,7 +847,8 @@ function SitePlanner({ currentUser, onLogout }) {
             <button onClick={onLogout} style={{background:"#fff",color:"#DC2626",border:"1.5px solid #FCA5A5",padding:"6px 12px",borderRadius:6,fontSize:12,fontWeight:700,cursor:"pointer"}}>Log out</button>
           </div>
           <div style={{display:"flex",gap:2,marginTop:16,flexWrap:"wrap"}}>
-            {[["schedule","📅  Weekly"],["month","🗓️  Month"],["jobs","📊  Job List"],["contacts","📋  Contacts"],["leave","🏖️  Leave"]].map(([id,lbl])=>(
+            {[["schedule","📅  Weekly"],["month","🗓️  Month"],["jobs","📊  Job List"],["contacts","📋  Contacts"],["leave","🏖️  Leave"],
+              ...(currentUser.role==="admin"?[["reports","📈  Reports"],["history","🕘  History"]]:[])].map(([id,lbl])=>(
               <button key={id} onClick={()=>setTab(id)}
                 style={{background:tab===id?"#F0EDE8":"transparent",color:tab===id?"#111827":"#9CA3AF",border:"none",padding:"9px 18px",fontSize:13,fontWeight:600,cursor:"pointer",borderRadius:"8px 8px 0 0"}}>
                 {lbl}
@@ -927,8 +953,8 @@ function SitePlanner({ currentUser, onLogout }) {
                               {job&&(() => {
                                 const period = jobPeriodOnDate(job, dk) || "full";
                                 const isHalf = period === "am" || period === "pm";
-                                const halfColor = period === "am" ? "#38BDF8" : "#0A0A0A";
-                                const halfAccent = period === "am" ? "#0369A1" : "#0A0A0A";
+                                const halfColor = s.color;
+                                const halfAccent = s.accent;
                                 if (isHalf) {
                                   return (
                                     <div onClick={()=>openEdit(job)} style={{position:"relative",border:`2px solid ${halfColor}`,borderRadius:8,height:"calc(100% - 8px)",boxSizing:"border-box",cursor:"pointer",minHeight:56,overflow:"hidden",background:"#fff"}}>
@@ -939,12 +965,12 @@ function SitePlanner({ currentUser, onLogout }) {
                                       </svg>
                                       {period==="am" ? (
                                         <>
-                                          <div style={{position:"absolute",top:4,left:6,fontSize:11,fontWeight:800,color:"#fff",lineHeight:1.2,textShadow:"0 1px 2px rgba(0,0,0,0.15)",maxWidth:"70%"}}>{job.location}</div>
-                                          <div style={{position:"absolute",bottom:4,right:6,fontSize:10,fontWeight:800,color:halfAccent}}>AM</div>
+                                          <div style={{position:"absolute",top:4,left:6,fontSize:11,fontWeight:800,color:"#fff",lineHeight:1.2,maxWidth:"70%"}}>{job.location}</div>
+                                          <div style={{position:"absolute",top:30,left:6,fontSize:10,fontWeight:800,color:"#fff",opacity:0.85}}>AM</div>
                                         </>
                                       ) : (
                                         <>
-                                          <div style={{position:"absolute",top:4,left:6,fontSize:11,fontWeight:800,color:"#0A0A0A",lineHeight:1.2,maxWidth:"70%"}}>{job.location}</div>
+                                          <div style={{position:"absolute",top:4,left:6,fontSize:11,fontWeight:800,color:halfAccent,lineHeight:1.2,maxWidth:"70%"}}>{job.location}</div>
                                           <div style={{position:"absolute",bottom:4,right:6,fontSize:10,fontWeight:800,color:"#fff"}}>PM</div>
                                         </>
                                       )}
@@ -1030,9 +1056,8 @@ function SitePlanner({ currentUser, onLogout }) {
                     const isStart=dateKey(new Date(job.startDate))===dk;
                     const period = jobPeriodOnDate(job, dk) || "full";
                     const isHalf = period !== "full";
-                    const halfColor = period === "am" ? "#38BDF8" : "#0A0A0A";
-                    const bg = isHalf ? halfColor : (isStart?s.color:s.light);
-                    const border = isHalf ? halfColor : s.color;
+                    const bg = isHalf ? s.color : (isStart?s.color:s.light);
+                    const border = s.color;
                     const textColor = isHalf ? "#fff" : (isStart?"#fff":s.accent);
                     return (
                       <div key={job.id} style={{background:bg,border:`1px solid ${border}`,borderRadius:5,padding:"3px 5px",opacity:isHalf||isStart?1:0.7,display:"flex",justifyContent:"space-between",alignItems:"center",gap:4}}>
@@ -1288,6 +1313,123 @@ function SitePlanner({ currentUser, onLogout }) {
           </div>
         )}
 
+        {tab==="reports" && currentUser.role==="admin" && (() => {
+          const range = reportRange;
+          const setRange = setReportRange;
+          const sub = reportSub;
+          const setSub = setReportSub;
+          const rangeStart = new Date(range.start+"T00:00:00");
+          const rangeEnd = new Date(range.end+"T23:59:59");
+          const jobsInRange = jobs.filter(j => {
+            const days = jobDays(j);
+            return days.some(d => {
+              const dt = new Date(d.date+"T12:00:00");
+              return dt >= rangeStart && dt <= rangeEnd;
+            });
+          });
+          const parseT = (t) => { if(!t) return null; const [h,m]=t.split(":").map(Number); return h*60+(m||0); };
+          const calcHours = (start,end) => { const s=parseT(start),e=parseT(end); if(s==null||e==null||e<=s) return 0; return (e-s)/60; };
+          // Hours by Worker
+          const hoursByWorker = {};
+          jobsInRange.forEach(j => {
+            Object.entries(j.attendance||{}).forEach(([wn, dates]) => {
+              Object.entries(dates).forEach(([dk, rec]) => {
+                const dt = new Date(dk+"T12:00:00");
+                if (dt >= rangeStart && dt <= rangeEnd) {
+                  hoursByWorker[wn] = (hoursByWorker[wn]||0) + calcHours(rec.start, rec.end);
+                }
+              });
+            });
+          });
+          // Hours by Job
+          const hoursByJob = jobsInRange.map(j => {
+            let total = 0;
+            Object.values(j.attendance||{}).forEach(dates => {
+              Object.entries(dates).forEach(([dk, rec]) => {
+                const dt = new Date(dk+"T12:00:00");
+                if (dt >= rangeStart && dt <= rangeEnd) total += calcHours(rec.start, rec.end);
+              });
+            });
+            return { job: j, hours: total };
+          }).sort((a,b)=>b.hours-a.hours);
+          // Weekly/Monthly summaries reuse the same jobsInRange, just grouped by crew
+          return (
+            <div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:10}}>
+                <div style={{fontSize:18,fontWeight:800,color:"#111827"}}>📈 Reports <span style={{fontSize:12,fontWeight:500,color:"#9CA3AF"}}>(admin only)</span></div>
+                <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                  <label style={{fontSize:11,color:"#6B7280",fontWeight:600}}>From</label>
+                  <input type="date" value={range.start} onChange={e=>setRange(p=>({...p,start:e.target.value}))} style={{border:"1.5px solid #E5E0D8",borderRadius:8,padding:"6px 10px",fontSize:12}}/>
+                  <label style={{fontSize:11,color:"#6B7280",fontWeight:600}}>To</label>
+                  <input type="date" value={range.end} onChange={e=>setRange(p=>({...p,end:e.target.value}))} style={{border:"1.5px solid #E5E0D8",borderRadius:8,padding:"6px 10px",fontSize:12}}/>
+                </div>
+              </div>
+
+              <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
+                {[["hoursWorker","⏱️ Hours by Worker"],["hoursJob","🏗️ Hours by Job"],["weekly","📆 Weekly Summary"],["monthly","🗓️ Monthly Summary"]].map(([id,lbl])=>(
+                  <button key={id} onClick={()=>setSub(id)}
+                    style={{padding:"8px 14px",border:`1.5px solid ${sub===id?"#1B2D5B":"#E5E0D8"}`,borderRadius:8,background:sub===id?"#1B2D5B":"#fff",color:sub===id?"#fff":"#6B7280",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{background:"#fff",borderRadius:12,padding:18,boxShadow:"0 2px 8px rgba(0,0,0,0.07)"}}>
+                {sub==="hoursWorker" && (
+                  <div>
+                    {Object.entries(hoursByWorker).sort((a,b)=>b[1]-a[1]).map(([wn,hrs])=>(
+                      <div key={wn} style={{display:"flex",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px solid #F0EDE8"}}>
+                        <div style={{fontSize:13,fontWeight:700,color:"#1F2937"}}>{wn}</div>
+                        <div style={{fontSize:13,fontWeight:800,color:"#16A34A"}}>{hrs.toFixed(1)} hrs</div>
+                      </div>
+                    ))}
+                    {Object.keys(hoursByWorker).length===0 && <div style={{fontSize:13,color:"#9CA3AF",fontStyle:"italic",textAlign:"center",padding:"20px 0"}}>No attendance data in this range.</div>}
+                  </div>
+                )}
+                {sub==="hoursJob" && (
+                  <div>
+                    {hoursByJob.filter(x=>x.hours>0).map(({job,hours})=>(
+                      <div key={job.id} style={{display:"flex",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px solid #F0EDE8",cursor:"pointer"}} onClick={()=>openEdit(job)}>
+                        <div>
+                          <div style={{fontSize:13,fontWeight:700,color:"#1F2937"}}>{job.location}</div>
+                          <div style={{fontSize:11,color:"#9CA3AF"}}>{job.crew} · {jobDays(job).length} day{jobDays(job).length!==1?"s":""}</div>
+                        </div>
+                        <div style={{fontSize:13,fontWeight:800,color:"#16A34A"}}>{hours.toFixed(1)} hrs</div>
+                      </div>
+                    ))}
+                    {hoursByJob.filter(x=>x.hours>0).length===0 && <div style={{fontSize:13,color:"#9CA3AF",fontStyle:"italic",textAlign:"center",padding:"20px 0"}}>No attendance data in this range.</div>}
+                  </div>
+                )}
+                {(sub==="weekly"||sub==="monthly") && (
+                  <div>
+                    {jobsInRange.sort((a,b)=>a.startDate.localeCompare(b.startDate)).map(j=>{
+                      const s=C(j.crew);
+                      const d=jobDays(j);
+                      return (
+                        <div key={j.id} style={{display:"flex",gap:10,padding:"10px 0",borderBottom:"1px solid #F0EDE8",cursor:"pointer"}} onClick={()=>openEdit(j)}>
+                          <div style={{width:4,borderRadius:2,background:s.color,flexShrink:0}}/>
+                          <div style={{flex:1}}>
+                            <div style={{fontSize:13,fontWeight:700,color:"#1F2937"}}>{j.location}</div>
+                            <div style={{fontSize:11,color:"#9CA3AF",marginTop:2}}>{j.crew} · {fmtDateYY(new Date(j.startDate))} – {fmtDateYY(new Date(j.endDate))} · {d.length} day{d.length!==1?"s":""} · 👷 {j.workers.join(", ")}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {jobsInRange.length===0 && <div style={{fontSize:13,color:"#9CA3AF",fontStyle:"italic",textAlign:"center",padding:"20px 0"}}>No jobs in this range.</div>}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+        {tab==="history" && currentUser.role==="admin" && (
+          <div>
+            <div style={{fontSize:18,fontWeight:800,color:"#111827",marginBottom:14}}>🕘 History <span style={{fontSize:12,fontWeight:500,color:"#9CA3AF"}}>(admin only · last 60 days)</span></div>
+            <div style={{background:"#fff",borderRadius:12,padding:30,boxShadow:"0 2px 8px rgba(0,0,0,0.07)",textAlign:"center",color:"#9CA3AF",fontSize:13,fontStyle:"italic"}}>Coming soon…</div>
+          </div>
+        )}
+
       </div>
 
       {/* ── DAY POPUP ── */}
@@ -1297,7 +1439,7 @@ function SitePlanner({ currentUser, onLogout }) {
           <div style={{background:"#fff",borderRadius:14,width:"100%",maxWidth:480,boxShadow:"0 24px 64px rgba(0,0,0,0.25)",overflow:"hidden",maxHeight:"85vh",display:"flex",flexDirection:"column"}}>
             <div style={{background:"#111827",padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <div>
-                <div style={{fontSize:16,fontWeight:800,color:"#fff"}}>{dayPopup.date.toLocaleDateString("en-AU",{weekday:"long",day:"numeric",month:"long"})}</div>
+                <div style={{fontSize:16,fontWeight:800,color:"#fff"}}>{["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][dayPopup.date.getDay()]} {fmtDateYY(dayPopup.date)}</div>
                 <div style={{fontSize:11,color:"#6B9E7A",marginTop:2}}>{dayPopup.jobs.length} job{dayPopup.jobs.length!==1?"s":""}</div>
               </div>
               <button onClick={()=>setDayPopup(null)} style={{background:"rgba(255,255,255,0.1)",border:"none",color:"#fff",width:30,height:30,borderRadius:"50%",cursor:"pointer",fontSize:15}}>✕</button>
@@ -1432,9 +1574,21 @@ function SitePlanner({ currentUser, onLogout }) {
                   });
                 };
                 const [expandedW, expandedD] = (form._attExpanded || "").split("|");
-                const toggleExpand = (wname, dk) => {
+                const handleExpand = (wname, dk, period) => {
                   const key = `${wname}|${dk}`;
-                  setForm(p => ({...p, _attExpanded: p._attExpanded===key ? "" : key}));
+                  setForm(p => {
+                    if (p._attExpanded === key) {
+                      return {...p, _attExpanded: ""};
+                    }
+                    const a = {...(p.attendance||{})};
+                    const existing = a[wname]?.[dk] || {};
+                    if (!existing.start) {
+                      const defaultStart = period === "pm" ? "12:00" : "06:00";
+                      a[wname] = {...(a[wname]||{})};
+                      a[wname][dk] = {...existing, start: defaultStart};
+                    }
+                    return {...p, _attExpanded: key, attendance: a};
+                  });
                 };
                 let totalHrs = 0;
                 form.workers.forEach(wn => {
@@ -1445,7 +1599,8 @@ function SitePlanner({ currentUser, onLogout }) {
                 });
                 const dayLabel = (dk) => {
                   const d = new Date(dk+"T12:00:00");
-                  return d.toLocaleDateString("en-AU", {weekday:"short", day:"2-digit", month:"2-digit"});
+                  const wd = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()];
+                  return `${wd}, ${fmtDate(d)}`;
                 };
                 const periodLabel = (p) => p==="am"?"AM only":p==="pm"?"PM only":"Full day";
                 return (
@@ -1467,7 +1622,7 @@ function SitePlanner({ currentUser, onLogout }) {
                               const isExpanded = expandedW===wn && expandedD===d.date;
                               const hasTime = rec.start || rec.end;
                               return (
-                                <div key={wn} style={{padding:"9px 11px",background:canEdit&&isExpanded?"#EFF6FF":"#fff",border:`1px solid ${canEdit&&isExpanded?"#60A5FA":"#E5E0D8"}`,borderRadius:8,cursor:canEdit?"pointer":"default"}} onClick={()=>canEdit&&toggleExpand(wn,d.date)}>
+                                <div key={wn} style={{padding:"9px 11px",background:canEdit&&isExpanded?"#EFF6FF":"#fff",border:`1px solid ${canEdit&&isExpanded?"#60A5FA":"#E5E0D8"}`,borderRadius:8,cursor:canEdit?"pointer":"default"}} onClick={()=>canEdit&&handleExpand(wn,d.date,d.period||"full")}>
                                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
                                     <div style={{fontSize:12,fontWeight:isSelf||hasTime?700:400,color:canEdit?"#1F2937":"#6B7280"}}>
                                       {wn} {isSelf && <span style={{fontSize:10,fontWeight:500,color:"#2563EB"}}>(you)</span>}
@@ -1478,9 +1633,17 @@ function SitePlanner({ currentUser, onLogout }) {
                                   </div>
                                   {canEdit && isExpanded && (
                                     <div onClick={e=>e.stopPropagation()} style={{display:"flex",gap:8,marginTop:10,alignItems:"center"}}>
-                                      <input type="time" value={rec.start||""} onChange={e=>updateTime(wn,d.date,"start",e.target.value)} style={{flex:1,border:"1.5px solid #BFDBFE",borderRadius:6,padding:"6px 8px",fontSize:12,outline:"none"}}/>
+                                      <select value={rec.start||""} onChange={e=>updateTime(wn,d.date,"start",e.target.value)}
+                                        style={{flex:1,border:"1.5px solid #BFDBFE",borderRadius:6,padding:"7px 8px",fontSize:13,color:"#1F2937",fontWeight:600,background:"#fff",outline:"none",cursor:"pointer"}}>
+                                        <option value="">Start</option>
+                                        {TIME_SLOTS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                                      </select>
                                       <span style={{color:"#9CA3AF"}}>→</span>
-                                      <input type="time" value={rec.end||""} onChange={e=>updateTime(wn,d.date,"end",e.target.value)} style={{flex:1,border:"1.5px solid #BFDBFE",borderRadius:6,padding:"6px 8px",fontSize:12,outline:"none"}}/>
+                                      <select value={rec.end||""} onChange={e=>updateTime(wn,d.date,"end",e.target.value)}
+                                        style={{flex:1,border:"1.5px solid #BFDBFE",borderRadius:6,padding:"7px 8px",fontSize:13,color:"#1F2937",fontWeight:600,background:"#fff",outline:"none",cursor:"pointer"}}>
+                                        <option value="">End</option>
+                                        {TIME_SLOTS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                                      </select>
                                     </div>
                                   )}
                                 </div>
@@ -1644,7 +1807,9 @@ function SitePlanner({ currentUser, onLogout }) {
                     No entries yet — add a note below.
                   </div>
                 ):sortedDays.map(day=>{
-                  const dayLabel=new Date(day+"T12:00:00").toLocaleDateString("en-AU",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+                  const _d=new Date(day+"T12:00:00");
+                  const _wd=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][_d.getDay()];
+                  const dayLabel=`${_wd} ${fmtDateYY(_d)}`;
                   return (
                     <div key={day}>
                       <div style={{display:"flex",alignItems:"center",gap:8,margin:"10px 0 8px"}}>
