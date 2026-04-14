@@ -188,14 +188,24 @@ function buildInitJobs() {
   ];
 }
 
+function jobDays(job) {
+  if (Array.isArray(job.days) && job.days.length > 0) {
+    return job.days.map(d => ({ date: d.date, period: d.period || "full" }));
+  }
+  const out = []; let cur = new Date(job.startDate); const end = new Date(job.endDate);
+  while (cur <= end) { out.push({ date: dateKey(cur), period: "full" }); cur = addDays(cur,1); }
+  return out;
+}
 function jobDates(job) {
-  const dates = []; let cur = new Date(job.startDate); const end = new Date(job.endDate);
-  while (cur <= end) { dates.push(dateKey(cur)); cur = addDays(cur,1); }
-  return dates;
+  return jobDays(job).map(d => d.date);
+}
+function jobPeriodOnDate(job, dk) {
+  const d = jobDays(job).find(x => x.date === dk);
+  return d ? d.period : null;
 }
 function jobOnDate(job, dk) { return jobDates(job).includes(dk); }
 
-const emptyForm = { crew:"Topcon Builders", location:"", startDate:"", endDate:"", workers:[], notes:"", invoiced:false, poFile:null, poFileName:"", photos:[], documentLinks:[] };
+const emptyForm = { crew:"Topcon Builders", location:"", startDate:"", endDate:"", days:[], workers:[], notes:"", invoiced:false, poFile:null, poFileName:"", photos:[], documentLinks:[] };
 
 
 function UserManagement({ currentUser }) {
@@ -506,7 +516,7 @@ function SitePlanner({ currentUser, onLogout }) {
   const todayStr = () => new Date().toISOString().slice(0,10);
   const openAdd = (prefillDate=null) => {
     const sd = prefillDate ? dateKey(prefillDate) : todayStr();
-    setForm({ ...emptyForm, startDate:sd, endDate:sd });
+    setForm({ ...emptyForm, startDate:sd, endDate:sd, days:[{date:sd,period:"full"}] });
     setEditId(null); setShowModal(true); setDayPopup(null);
   };
   const openEdit = (job) => {
@@ -517,17 +527,21 @@ function SitePlanner({ currentUser, onLogout }) {
     } else if (job.documentLink) {
       docLinks = [{ name: job.documentName||"", url: job.documentLink }];
     }
-    setForm({ crew:job.crew, location:job.location, startDate:job.startDate, endDate:job.endDate, workers:[...job.workers], notes:job.notes, invoiced:job.invoiced||false, poFile:job.poFile||null, poFileName:job.poFileName||"", photos:job.photos||[], documentLinks: docLinks });
+    const days = jobDays(job);
+    setForm({ crew:job.crew, location:job.location, startDate:job.startDate, endDate:job.endDate, days, workers:[...job.workers], notes:job.notes, invoiced:job.invoiced||false, poFile:job.poFile||null, poFileName:job.poFileName||"", photos:job.photos||[], documentLinks: docLinks });
     setEditId(job.id); setShowModal(true);
   };
   const saveJob = () => {
-    if (!form.location.trim() || !form.startDate) return;
-    const endDate = form.endDate && form.endDate >= form.startDate ? form.endDate : form.startDate;
+    if (!form.location.trim()) return;
+    const days = (form.days||[]).filter(d => d.date).sort((a,b)=>a.date.localeCompare(b.date));
+    if (days.length === 0) return;
+    const startDate = days[0].date;
+    const endDate = days[days.length-1].date;
     const nowIso = new Date().toISOString();
     if (editId !== null) {
       const updated = jobs.find(j => j.id === editId);
       const merged = {
-        ...updated, ...form, endDate,
+        ...updated, ...form, days, startDate, endDate,
         createdBy: updated?.createdBy || currentUser.name,
         createdAt: updated?.createdAt || nowIso,
         lastEditedBy: currentUser.name,
@@ -537,7 +551,7 @@ function SitePlanner({ currentUser, onLogout }) {
       api.saveJob(merged).catch(e => console.error("saveJob failed", e));
     } else {
       const newJob = {
-        id: nextId, ...form, endDate,
+        id: nextId, ...form, days, startDate, endDate,
         createdBy: currentUser.name,
         createdAt: nowIso,
         lastEditedBy: currentUser.name,
@@ -849,7 +863,7 @@ function SitePlanner({ currentUser, onLogout }) {
                                 </div>
                               )}
                               {!job&&!workerLeave&&(
-                                <button onClick={()=>{setForm({...emptyForm,crew,startDate:dk,endDate:dk,workers:[worker.name]});setEditId(null);setShowModal(true);}}
+                                <button onClick={()=>{setForm({...emptyForm,crew,startDate:dk,endDate:dk,days:[{date:dk,period:"full"}],workers:[worker.name]});setEditId(null);setShowModal(true);}}
                                   style={{width:"100%",height:"100%",minHeight:56,background:"transparent",border:"2px dashed #DEDADA",borderRadius:8,cursor:"pointer",color:"#C4B8AC",fontSize:20,display:"flex",alignItems:"center",justifyContent:"center"}}
                                   onMouseEnter={e=>{e.currentTarget.style.borderColor=s.color;e.currentTarget.style.background=s.light;}}
                                   onMouseLeave={e=>{e.currentTarget.style.borderColor="#DEDADA";e.currentTarget.style.background="transparent";}}>
@@ -1222,13 +1236,41 @@ function SitePlanner({ currentUser, onLogout }) {
                 </div>
               </div>
               <div>
-                <label style={{fontSize:10,fontWeight:700,color:"#9CA3AF",letterSpacing:1,display:"block",marginBottom:7}}>DATES</label>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-                  <input type="date" value={form.startDate} onChange={e=>setForm(p=>({...p,startDate:e.target.value,endDate:p.endDate<e.target.value?e.target.value:p.endDate}))}
-                    style={{border:`1.5px solid ${C(form.crew).color}`,borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none",color:"#1F2937",background:C(form.crew).light}}/>
-                  <input type="date" value={form.endDate} min={form.startDate} onChange={e=>setForm(p=>({...p,endDate:e.target.value}))}
-                    style={{border:`1.5px solid ${C(form.crew).color}`,borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none",color:"#1F2937",background:C(form.crew).light}}/>
-                </div>
+                <label style={{fontSize:10,fontWeight:700,color:"#9CA3AF",letterSpacing:1,display:"block",marginBottom:7}}>SCHEDULE</label>
+                {(() => {
+                  const days = form.days||[];
+                  const updateDay = (i,field,val) => setForm(p=>({...p,days:p.days.map((d,j)=>j===i?{...d,[field]:val}:d)}));
+                  const addDay = () => {
+                    const last = days[days.length-1];
+                    const nextDate = last ? dateKey(addDays(new Date(last.date),1)) : todayStr();
+                    setForm(p=>({...p,days:[...(p.days||[]),{date:nextDate,period:"full"}]}));
+                  };
+                  const removeDay = (i) => setForm(p=>({...p,days:p.days.filter((_,j)=>j!==i)}));
+                  const periodColor = (p) => p==="am" ? "#38BDF8" : p==="pm" ? "#0A0A0A" : "#1B2D5B";
+                  return (
+                    <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                      {days.map((d,i)=>(
+                        <div key={i} style={{display:"flex",gap:6,alignItems:"center"}}>
+                          <input type="date" value={d.date} onChange={e=>updateDay(i,"date",e.target.value)}
+                            style={{flex:1,border:`1.5px solid ${C(form.crew).color}`,borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none",color:"#1F2937",background:C(form.crew).light,boxSizing:"border-box"}}/>
+                          <div style={{display:"flex",background:"#F0EDE8",borderRadius:7,padding:3,gap:2,flexShrink:0}}>
+                            {["full","am","pm"].map(p=>{
+                              const sel=d.period===p;
+                              return (
+                                <button key={p} onClick={()=>updateDay(i,"period",p)}
+                                  style={{padding:"5px 10px",border:"none",borderRadius:5,background:sel?periodColor(p):"transparent",color:sel?"#fff":"#9CA3AF",fontSize:11,fontWeight:700,cursor:"pointer",textTransform:p==="full"?"none":"uppercase"}}>
+                                  {p==="full"?"Full":p}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {i>0 && <button onClick={()=>removeDay(i)} title="Remove" style={{width:28,height:36,border:"1.5px solid #FCA5A5",borderRadius:8,background:"#FEF2F2",color:"#DC2626",fontSize:14,cursor:"pointer",padding:0}}>×</button>}
+                        </div>
+                      ))}
+                      <button onClick={addDay} style={{marginTop:2,padding:"6px 10px",border:"1.5px dashed #D1C9BE",borderRadius:8,background:"transparent",color:"#9CA3AF",fontSize:12,fontWeight:600,cursor:"pointer",alignSelf:"flex-start"}}>+ Add another day</button>
+                    </div>
+                  );
+                })()}
               </div>
               <div>
                 <label style={{fontSize:10,fontWeight:700,color:"#9CA3AF",letterSpacing:1,display:"block",marginBottom:7}}>LOCATION</label>
