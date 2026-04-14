@@ -278,7 +278,7 @@ function jobPeriodOnDate(job, dk) {
 }
 function jobOnDate(job, dk) { return jobDates(job).includes(dk); }
 
-const emptyForm = { crew:"Topcon Builders", location:"", startDate:"", endDate:"", days:[], workers:[], notes:"", invoiced:false, poFile:null, poFileName:"", photos:[], documentLinks:[] };
+const emptyForm = { crew:"Topcon Builders", location:"", startDate:"", endDate:"", days:[], workers:[], notes:"", invoiced:false, poFile:null, poFileName:"", photos:[], documentLinks:[], attendance:{} };
 
 
 function UserManagement({ currentUser }) {
@@ -601,7 +601,7 @@ function SitePlanner({ currentUser, onLogout }) {
       docLinks = [{ name: job.documentName||"", url: job.documentLink }];
     }
     const days = jobDays(job);
-    setForm({ crew:job.crew, location:job.location, startDate:job.startDate, endDate:job.endDate, days, workers:[...job.workers], notes:job.notes, invoiced:job.invoiced||false, poFile:job.poFile||null, poFileName:job.poFileName||"", photos:job.photos||[], documentLinks: docLinks });
+    setForm({ crew:job.crew, location:job.location, startDate:job.startDate, endDate:job.endDate, days, workers:[...job.workers], notes:job.notes, invoiced:job.invoiced||false, poFile:job.poFile||null, poFileName:job.poFileName||"", photos:job.photos||[], documentLinks: docLinks, attendance: job.attendance||{} });
     setEditId(job.id); setShowModal(true);
   };
   const saveJob = () => {
@@ -611,10 +611,11 @@ function SitePlanner({ currentUser, onLogout }) {
     const startDate = days[0].date;
     const endDate = days[days.length-1].date;
     const nowIso = new Date().toISOString();
+    const { _attExpanded, ...cleanForm } = form;
     if (editId !== null) {
       const updated = jobs.find(j => j.id === editId);
       const merged = {
-        ...updated, ...form, days, startDate, endDate,
+        ...updated, ...cleanForm, days, startDate, endDate,
         createdBy: updated?.createdBy || currentUser.name,
         createdAt: updated?.createdAt || nowIso,
         lastEditedBy: currentUser.name,
@@ -624,7 +625,7 @@ function SitePlanner({ currentUser, onLogout }) {
       api.saveJob(merged).catch(e => console.error("saveJob failed", e));
     } else {
       const newJob = {
-        id: nextId, ...form, days, startDate, endDate,
+        id: nextId, ...cleanForm, days, startDate, endDate,
         createdBy: currentUser.name,
         createdAt: nowIso,
         lastEditedBy: currentUser.name,
@@ -1394,21 +1395,104 @@ function SitePlanner({ currentUser, onLogout }) {
               </div>
               <div>
                 <label style={{fontSize:10,fontWeight:700,color:"#9CA3AF",letterSpacing:1,display:"block",marginBottom:7}}>WORKERS <span style={{color:C(form.crew).color}}>({form.workers.length} selected)</span></label>
-                <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5}}>
                   {(workers[form.crew]||[]).filter(w=>w.active!==false).map(w=>{
                     const sel=form.workers.includes(w.name); const s=C(form.crew);
                     return (
                       <button key={w.name} onClick={()=>toggleWorker(w.name)}
-                        style={{display:"flex",alignItems:"center",gap:10,padding:"7px 12px",border:`1.5px solid ${sel?s.color:"#E5E0D8"}`,borderRadius:8,background:sel?s.light:"#FAFAF8",cursor:"pointer",textAlign:"left"}}>
-                        <div style={{width:16,height:16,borderRadius:4,border:`2px solid ${sel?s.color:"#CCC"}`,background:sel?s.color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                          {sel&&<span style={{color:"#fff",fontSize:10}}>✓</span>}
+                        style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",border:`1.5px solid ${sel?s.color:"#E5E0D8"}`,borderRadius:8,background:sel?s.light:"#FAFAF8",cursor:"pointer",textAlign:"left"}}>
+                        <div style={{width:14,height:14,borderRadius:4,border:`2px solid ${sel?s.color:"#CCC"}`,background:sel?s.color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                          {sel&&<span style={{color:"#fff",fontSize:9}}>✓</span>}
                         </div>
-                        <span style={{fontSize:13,color:sel?s.accent:"#555",fontWeight:sel?600:400}}>{w.name}</span>
+                        <span style={{fontSize:12,color:sel?s.accent:"#555",fontWeight:sel?600:400,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{w.name}</span>
                       </button>
                     );
                   })}
                 </div>
               </div>
+              {form.workers.length>0 && (form.days||[]).length>0 && (() => {
+                const attendance = form.attendance || {};
+                const isAdmin = currentUser.role==="admin";
+                const parseTime = (t) => {
+                  if (!t) return null;
+                  const [h,m] = t.split(":").map(Number);
+                  return h*60 + (m||0);
+                };
+                const hoursFor = (start, end) => {
+                  const s = parseTime(start), e = parseTime(end);
+                  if (s==null || e==null || e<=s) return 0;
+                  return (e-s)/60;
+                };
+                const updateTime = (wname, dk, field, val) => {
+                  setForm(p => {
+                    const a = {...(p.attendance||{})};
+                    a[wname] = {...(a[wname]||{})};
+                    a[wname][dk] = {...(a[wname][dk]||{}), [field]: val};
+                    return {...p, attendance:a};
+                  });
+                };
+                const [expandedW, expandedD] = (form._attExpanded || "").split("|");
+                const toggleExpand = (wname, dk) => {
+                  const key = `${wname}|${dk}`;
+                  setForm(p => ({...p, _attExpanded: p._attExpanded===key ? "" : key}));
+                };
+                let totalHrs = 0;
+                form.workers.forEach(wn => {
+                  (form.days||[]).forEach(d => {
+                    const rec = attendance[wn]?.[d.date];
+                    if (rec) totalHrs += hoursFor(rec.start, rec.end);
+                  });
+                });
+                const dayLabel = (dk) => {
+                  const d = new Date(dk+"T12:00:00");
+                  return d.toLocaleDateString("en-AU", {weekday:"short", day:"2-digit", month:"2-digit"});
+                };
+                const periodLabel = (p) => p==="am"?"AM only":p==="pm"?"PM only":"Full day";
+                return (
+                  <div>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                      <label style={{fontSize:10,fontWeight:700,color:"#9CA3AF",letterSpacing:1}}>TIME ATTENDANCE</label>
+                      {totalHrs>0 && <span style={{fontSize:11,fontWeight:700,color:"#16A34A"}}>{totalHrs.toFixed(1)} hrs total</span>}
+                    </div>
+                    <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                      {(form.days||[]).map((d,di)=>(
+                        <div key={di} style={{background:"#FAFAF8",border:"1px solid #E5E0D8",borderRadius:10,padding:10}}>
+                          <div style={{fontSize:11,fontWeight:800,color:C(form.crew).accent,marginBottom:6,letterSpacing:0.5}}>📅 {dayLabel(d.date)} · {periodLabel(d.period||"full")}</div>
+                          <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                            {form.workers.map(wn => {
+                              const rec = attendance[wn]?.[d.date] || {};
+                              const hrs = hoursFor(rec.start, rec.end);
+                              const isSelf = wn === currentUser.name;
+                              const canEdit = isAdmin || isSelf;
+                              const isExpanded = expandedW===wn && expandedD===d.date;
+                              const hasTime = rec.start || rec.end;
+                              return (
+                                <div key={wn} style={{padding:"9px 11px",background:canEdit&&isExpanded?"#EFF6FF":"#fff",border:`1px solid ${canEdit&&isExpanded?"#60A5FA":"#E5E0D8"}`,borderRadius:8,cursor:canEdit?"pointer":"default"}} onClick={()=>canEdit&&toggleExpand(wn,d.date)}>
+                                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+                                    <div style={{fontSize:12,fontWeight:isSelf||hasTime?700:400,color:canEdit?"#1F2937":"#6B7280"}}>
+                                      {wn} {isSelf && <span style={{fontSize:10,fontWeight:500,color:"#2563EB"}}>(you)</span>}
+                                    </div>
+                                    <div style={{fontSize:11,fontWeight:700,color:hasTime?(canEdit&&isExpanded?"#2563EB":"#6B7280"):"#9CA3AF"}}>
+                                      {hasTime ? `${rec.start||"—"} – ${rec.end||"—"}${hrs>0?` · ${hrs.toFixed(1)}h`:""}` : canEdit?"Tap to add ›":"— not set —"}
+                                    </div>
+                                  </div>
+                                  {canEdit && isExpanded && (
+                                    <div onClick={e=>e.stopPropagation()} style={{display:"flex",gap:8,marginTop:10,alignItems:"center"}}>
+                                      <input type="time" value={rec.start||""} onChange={e=>updateTime(wn,d.date,"start",e.target.value)} style={{flex:1,border:"1.5px solid #BFDBFE",borderRadius:6,padding:"6px 8px",fontSize:12,outline:"none"}}/>
+                                      <span style={{color:"#9CA3AF"}}>→</span>
+                                      <input type="time" value={rec.end||""} onChange={e=>updateTime(wn,d.date,"end",e.target.value)} style={{flex:1,border:"1.5px solid #BFDBFE",borderRadius:6,padding:"6px 8px",fontSize:12,outline:"none"}}/>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
               <div>
                 <label style={{fontSize:10,fontWeight:700,color:"#9CA3AF",letterSpacing:1,display:"block",marginBottom:7}}>DOCUMENT LINKS {currentUser.role!=="admin"&&<span style={{color:"#9CA3AF",fontWeight:500,letterSpacing:0}}>(admin only)</span>}</label>
                 {(() => {

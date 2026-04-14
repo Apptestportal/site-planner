@@ -12,6 +12,7 @@ function toEntity(job) {
     startDate: job.startDate || "",
     endDate: job.endDate || "",
     daysJson: JSON.stringify(job.days || []),
+    attendanceJson: JSON.stringify(job.attendance || {}),
     workersJson: JSON.stringify(job.workers || []),
     notes: job.notes || "",
     invoiced: !!job.invoiced,
@@ -36,6 +37,10 @@ function fromEntity(e) {
   if (e.daysJson) {
     try { days = JSON.parse(e.daysJson); } catch(err) { days = []; }
   }
+  let attendance = {};
+  if (e.attendanceJson) {
+    try { attendance = JSON.parse(e.attendanceJson); } catch(err) { attendance = {}; }
+  }
   return {
     id: parseInt(e.rowKey, 10),
     crew: e.crew,
@@ -43,6 +48,7 @@ function fromEntity(e) {
     startDate: e.startDate,
     endDate: e.endDate,
     days,
+    attendance,
     workers: e.workersJson ? JSON.parse(e.workersJson) : [],
     notes: e.notes,
     invoiced: !!e.invoiced,
