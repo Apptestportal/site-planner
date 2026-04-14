@@ -1,4 +1,4 @@
-const { ensureTables, getClient, authenticate, unauth, ok, bad } = require("../shared/table");
+const { ensureTables, getClient, authenticate, unauth, ok, bad, logEvent } = require("../shared/table");
 
 const PARTITION = "leave";
 
@@ -46,13 +46,22 @@ module.exports = async function (context, req) {
         return ok(context, { migrated: body.length });
       }
       if (!body.id && body.id !== 0) return bad(context, "id required");
+      let existed = false;
+      try { await client.getEntity(PARTITION, String(body.id)); existed = true; } catch (_) {}
       await client.upsertEntity(toEntity(body), "Replace");
+      await logEvent({ user, action: existed ? "edit" : "create", entityType: "leave", entityId: body.id, entityName: `${body.workerName || ""} ${body.startDate || ""}` });
       return ok(context, body);
     }
 
     if (req.method === "DELETE") {
       if (!id) return bad(context, "id required");
+      let name = "";
+      try {
+        const e = await client.getEntity(PARTITION, String(id));
+        name = `${e.workerName || ""} ${e.startDate || ""}`;
+      } catch (_) {}
       try { await client.deleteEntity(PARTITION, String(id)); } catch (e) {}
+      await logEvent({ user, action: "delete", entityType: "leave", entityId: id, entityName: name });
       return ok(context, { deleted: id });
     }
 

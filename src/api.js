@@ -83,3 +83,6 @@ export async function getThreads() { return request("threads"); }
 export async function saveThreads(threadsMap) {
   return request("threads", { method: "POST", body: JSON.stringify(threadsMap) });
 }
+
+// ── History (admin audit log) ──
+export async function listHistory() { return request("history"); }

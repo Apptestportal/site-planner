@@ -295,6 +295,140 @@ function jobOnDate(job, dk) { return jobDates(job).includes(dk); }
 const emptyForm = { crew:"Topcon Builders", location:"", startDate:"", endDate:"", days:[], workers:[], notes:"", invoiced:false, poFile:null, poFileName:"", photos:[], documentLinks:[], attendance:{} };
 
 
+function HistoryTab() {
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [expanded, setExpanded] = useState({});
+
+  const load = async () => {
+    setLoading(true); setError("");
+    try {
+      const data = await api.listHistory();
+      setEvents(data || []);
+    } catch (e) {
+      setError(e.message || "Failed to load history");
+    }
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const fmtWhen = (iso) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const dd = String(d.getDate()).padStart(2,"0");
+    const mm = String(d.getMonth()+1).padStart(2,"0");
+    const yy = String(d.getFullYear()).slice(-2);
+    const hh = String(d.getHours()).padStart(2,"0");
+    const mi = String(d.getMinutes()).padStart(2,"0");
+    return `${dd}/${mm}/${yy} ${hh}:${mi}`;
+  };
+
+  const typeColor = {
+    job: "#1B2D5B",
+    worker: "#16A34A",
+    leave: "#F59E0B",
+    user: "#6366F1"
+  };
+  const typeLabel = {
+    job: "JOB",
+    worker: "WORKER",
+    leave: "LEAVE",
+    user: "USER"
+  };
+
+  const filtered = events.filter(ev => {
+    if (filter !== "all" && ev.entityType !== filter) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      if (!((ev.entityName||"").toLowerCase().includes(q) ||
+            (ev.userName||"").toLowerCase().includes(q) ||
+            (ev.action||"").toLowerCase().includes(q))) return false;
+    }
+    return true;
+  });
+
+  // Group by entityType + entityId
+  const groups = {};
+  filtered.forEach(ev => {
+    const key = `${ev.entityType}|${ev.entityId}`;
+    if (!groups[key]) groups[key] = { entityType: ev.entityType, entityId: ev.entityId, entityName: ev.entityName, events: [] };
+    groups[key].events.push(ev);
+    if (new Date(ev.timestamp) > new Date(groups[key].lastTs || 0)) {
+      groups[key].lastTs = ev.timestamp;
+      groups[key].lastUser = ev.userName;
+      groups[key].entityName = ev.entityName || groups[key].entityName;
+    }
+  });
+  const groupList = Object.values(groups).sort((a,b) => (b.lastTs||"").localeCompare(a.lastTs||""));
+
+  const toggleExpand = (key) => setExpanded(p => ({...p, [key]: !p[key]}));
+
+  return (
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,gap:10,flexWrap:"wrap"}}>
+        <div style={{display:"flex",gap:4,background:"#F0EDE8",borderRadius:8,padding:3}}>
+          {[["all","All"],["job","Jobs"],["worker","Workers"],["leave","Leave"],["user","Users"]].map(([id,lbl])=>(
+            <button key={id} onClick={()=>setFilter(id)}
+              style={{padding:"6px 12px",border:"none",borderRadius:6,background:filter===id?"#1F2937":"transparent",color:filter===id?"#fff":"#6B7280",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+              {lbl}
+            </button>
+          ))}
+        </div>
+        <button onClick={load} style={{padding:"6px 14px",border:"1.5px solid #E5E0D8",borderRadius:8,background:"#fff",color:"#6B7280",fontSize:12,fontWeight:700,cursor:"pointer"}}>🔄 Refresh</button>
+      </div>
+      <input placeholder="🔍 Search by site, worker, or user…" value={search} onChange={e=>setSearch(e.target.value)}
+        style={{width:"100%",padding:"9px 12px",border:"1.5px solid #E5E0D8",borderRadius:8,fontSize:13,boxSizing:"border-box",marginBottom:12,outline:"none"}}/>
+
+      {loading && <div style={{textAlign:"center",padding:"30px 0",color:"#9CA3AF",fontSize:13}}>Loading…</div>}
+      {error && <div style={{background:"#FEF2F2",border:"1.5px solid #FCA5A5",color:"#DC2626",padding:10,borderRadius:8,fontSize:12,marginBottom:10}}>{error}</div>}
+      {!loading && groupList.length===0 && <div style={{textAlign:"center",padding:"30px 0",color:"#9CA3AF",fontSize:13,fontStyle:"italic"}}>No history events match.</div>}
+
+      <div style={{display:"flex",flexDirection:"column",gap:6}}>
+        {groupList.map(g=>{
+          const key = `${g.entityType}|${g.entityId}`;
+          const isOpen = !!expanded[key];
+          const color = typeColor[g.entityType] || "#6B7280";
+          return (
+            <div key={key} style={{border:`1px solid ${isOpen?color:"#E5E0D8"}`,borderRadius:10,background:"#fff",overflow:"hidden"}}>
+              <div onClick={()=>toggleExpand(key)} style={{padding:"12px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer",background:isOpen?"#FAFAF8":"#fff"}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{fontSize:10,fontWeight:800,background:color,color:"#fff",padding:"2px 6px",borderRadius:4,flexShrink:0}}>{typeLabel[g.entityType]||g.entityType.toUpperCase()}</span>
+                    <div style={{fontSize:13,fontWeight:800,color:"#111827",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{g.entityName || g.entityId}</div>
+                  </div>
+                  <div style={{fontSize:11,color:"#6B7280",marginTop:3}}>{g.events.length} change{g.events.length!==1?"s":""} · last {fmtWhen(g.lastTs)} by {g.lastUser}</div>
+                </div>
+                <div style={{fontSize:14,color:color,transform:isOpen?"rotate(90deg)":"rotate(0deg)",transition:"transform 0.2s",flexShrink:0,marginLeft:8}}>›</div>
+              </div>
+              {isOpen && (
+                <div style={{padding:"4px 14px 12px",borderTop:"1px solid #E5E0D8"}}>
+                  {g.events.map(ev=>{
+                    const actColor = ev.action==="create"?"#16A34A":ev.action==="delete"?"#DC2626":"#2563EB";
+                    return (
+                      <div key={ev.id} style={{display:"flex",gap:12,padding:"10px 0",borderBottom:"1px dashed #E5E0D8"}}>
+                        <div style={{flex:"0 0 110px",fontSize:11,color:"#9CA3AF",fontWeight:600}}>{fmtWhen(ev.timestamp)}</div>
+                        <div style={{flex:1}}>
+                          <div style={{fontSize:12,color:"#1F2937"}}>
+                            <b style={{color:"#2563EB"}}>{ev.userName}</b> <span style={{color:actColor,fontWeight:700}}>{ev.action}d</span> <span style={{color:"#6B7280"}}>{ev.entityType}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+
 function UserManagement({ currentUser }) {
   const [users, setUsers]   = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1426,7 +1560,7 @@ function SitePlanner({ currentUser, onLogout }) {
         {tab==="history" && currentUser.role==="admin" && (
           <div>
             <div style={{fontSize:18,fontWeight:800,color:"#111827",marginBottom:14}}>🕘 History <span style={{fontSize:12,fontWeight:500,color:"#9CA3AF"}}>(admin only · last 60 days)</span></div>
-            <div style={{background:"#fff",borderRadius:12,padding:30,boxShadow:"0 2px 8px rgba(0,0,0,0.07)",textAlign:"center",color:"#9CA3AF",fontSize:13,fontStyle:"italic"}}>Coming soon…</div>
+            <HistoryTab/>
           </div>
         )}
 

@@ -1,4 +1,4 @@
-const { ensureTables, getClient, authenticate, unauth, ok, bad } = require("../shared/table");
+const { ensureTables, getClient, authenticate, unauth, ok, bad, logEvent } = require("../shared/table");
 
 // Strategy: store the entire workers-by-crew map as a single JSON blob in one row.
 // Workers are small and always saved as a whole; this avoids per-worker row management.
@@ -29,6 +29,7 @@ module.exports = async function (context, req) {
         rowKey: ROW,
         dataJson: JSON.stringify(body)
       }, "Replace");
+      await logEvent({ user, action: "edit", entityType: "worker", entityId: "all", entityName: "Workers list" });
       return ok(context, body);
     }
 

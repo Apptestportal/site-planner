@@ -145,7 +145,9 @@ module.exports = async function (context, req) {
       if (body.oldEmail && body.oldEmail.toLowerCase() !== body.email.toLowerCase()) {
         try { await client.deleteEntity(PARTITION, safeKey(body.oldEmail)); } catch (e) {}
       }
+      const isEdit = !!body.oldEmail;
       await client.upsertEntity(toEntity(body), "Replace");
+      if (shared.logEvent) await shared.logEvent({ user, action: isEdit ? "edit" : "create", entityType: "user", entityId: body.email, entityName: body.name || body.email });
       return ok(context, fromEntity(toEntity(body)));
     }
 
@@ -153,6 +155,7 @@ module.exports = async function (context, req) {
       if (!requireAdmin(user)) return bad(context, "Admin only", 403);
       if (!emailParam) return bad(context, "email required");
       try { await client.deleteEntity(PARTITION, safeKey(emailParam)); } catch (e) {}
+      if (shared.logEvent) await shared.logEvent({ user, action: "delete", entityType: "user", entityId: emailParam, entityName: emailParam });
       return ok(context, { deleted: emailParam });
     }
 

@@ -2,7 +2,7 @@ const { TableClient, TableServiceClient } = require("@azure/data-tables");
 
 const CONN = process.env.AZURE_STORAGE_CONNECTION_STRING;
 
-const TABLES = ["jobs", "workers", "leave", "users", "threads"];
+const TABLES = ["jobs", "workers", "leave", "users", "threads", "history"];
 
 let _ensured = false;
 async function ensureTables() {
@@ -18,6 +18,32 @@ async function ensureTables() {
 function getClient(table) {
   if (!CONN) throw new Error("AZURE_STORAGE_CONNECTION_STRING not set");
   return TableClient.fromConnectionString(CONN, table);
+}
+
+// Write a single audit-log row. Best-effort: never throws.
+async function logEvent({ user, action, entityType, entityId, entityName }) {
+  try {
+    await ensureTables();
+    const client = getClient("history");
+    const ts = new Date();
+    // RowKey = reverse-sorted timestamp + rand for uniqueness
+    const rkTs = String(9999999999999 - ts.getTime()).padStart(13,"0");
+    const rand = Math.random().toString(36).slice(2,8);
+    await client.createEntity({
+      partitionKey: "event",
+      rowKey: `${rkTs}_${rand}`,
+      timestamp: ts.toISOString(),
+      userName: (user && user.name) || "system",
+      userEmail: (user && user.email) || "",
+      action: action || "edit",
+      entityType: entityType || "",
+      entityId: String(entityId || ""),
+      entityName: entityName || ""
+    });
+  } catch (e) {
+    // Swallow: audit logging must never block the main request
+    if (typeof console !== "undefined" && console.error) console.error("logEvent failed", e.message);
+  }
 }
 
 // Auth: verify access code header against users table
@@ -56,4 +82,4 @@ function bad(context, msg, status = 400) {
   context.res = { status, body: { error: msg } };
 }
 
-module.exports = { ensureTables, getClient, authenticate, unauth, requireAdmin, ok, bad };
+module.exports = { ensureTables, getClient, authenticate, unauth, requireAdmin, ok, bad, logEvent };

@@ -1,4 +1,4 @@
-const { ensureTables, getClient, authenticate, unauth, requireAdmin, ok, bad } = require("../shared/table");
+const { ensureTables, getClient, authenticate, unauth, requireAdmin, ok, bad, logEvent } = require("../shared/table");
 
 const PARTITION = "job";
 
@@ -89,14 +89,24 @@ module.exports = async function (context, req) {
       }
       // Single job upsert
       if (!body.id && body.id !== 0) return bad(context, "id required");
+      // Detect create vs edit by checking existence
+      let existed = false;
+      try { await client.getEntity(PARTITION, String(body.id)); existed = true; } catch (_) {}
       await client.upsertEntity(toEntity(body), "Replace");
+      await logEvent({ user, action: existed ? "edit" : "create", entityType: "job", entityId: body.id, entityName: body.location || "" });
       return ok(context, fromEntity(toEntity(body)));
     }
 
     if (req.method === "DELETE") {
       if (!requireAdmin(user)) return bad(context, "Admin only", 403);
       if (!id) return bad(context, "id required");
+      let name = "";
+      try {
+        const e = await client.getEntity(PARTITION, String(id));
+        name = e.location || "";
+      } catch (_) {}
       try { await client.deleteEntity(PARTITION, String(id)); } catch (e) {}
+      await logEvent({ user, action: "delete", entityType: "job", entityId: id, entityName: name });
       return ok(context, { deleted: id });
     }
 
