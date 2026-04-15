@@ -585,6 +585,7 @@ function SitePlanner({ currentUser, onLogout }) {
   const [leaveFilter, setLeaveFilter] = useState("All");
   const [jobListPeriod, setJobListPeriod] = useState("week");
   const [jobListOffset, setJobListOffset] = useState(0);
+  const [jobListCrewFilter, setJobListCrewFilter] = useState("All");
   const [threads, setThreads] = useState({});
   const [threadModal, setThreadModal] = useState(null);
   const [threadAuthor, setThreadAuthor] = useState("");
@@ -1049,10 +1050,9 @@ function SitePlanner({ currentUser, onLogout }) {
               if(activeWorkers.length===0) return null;
               return (
                 <div key={crew} style={{minWidth:1060}}>
-                  <div style={{display:"grid",gridTemplateColumns:"150px 1fr",background:s.color}}>
-                    <div style={{padding:"7px 14px",display:"flex",alignItems:"center",gap:8,gridColumn:"1/-1"}}>
-                      <img src={crew==="Topcon Builders"?TOPCON_LOGO:NQ_LOGO} alt={crew} style={{height:18,objectFit:"contain",filter:"brightness(0) invert(1)",opacity:0.9}}/>
-                      <span style={{fontSize:11,fontWeight:900,color:"#fff"}}>{crew.toUpperCase()}</span>
+                  <div style={{display:"grid",gridTemplateColumns:"150px 1fr",background:"#1a2235"}}>
+                    <div style={{padding:"6px 14px",display:"flex",alignItems:"center",gridColumn:"1/-1"}}>
+                      <span style={{background:s.color,color:"#fff",borderRadius:6,padding:"5px 14px",fontSize:13,fontWeight:700,letterSpacing:0}}>{crew}</span>
                     </div>
                   </div>
                   {activeWorkers.map((worker,wi)=>{
@@ -1104,8 +1104,8 @@ function SitePlanner({ currentUser, onLogout }) {
                                         </>
                                       ) : (
                                         <>
-                                          <div style={{position:"absolute",top:4,left:6,fontSize:11,fontWeight:800,color:halfAccent,lineHeight:1.2,maxWidth:"70%"}}>{job.location}</div>
-                                          <div style={{position:"absolute",bottom:4,right:6,fontSize:10,fontWeight:800,color:"#fff"}}>PM</div>
+                                          <div style={{position:"absolute",bottom:20,right:8,fontSize:11,fontWeight:800,color:"#fff",lineHeight:1.2,maxWidth:"65%",textAlign:"right"}}>{job.location}</div>
+                                          <div style={{position:"absolute",bottom:4,right:8,fontSize:10,fontWeight:800,color:"#fff",opacity:0.85}}>PM</div>
                                         </>
                                       )}
                                       {isFirst&&(
@@ -1160,13 +1160,17 @@ function SitePlanner({ currentUser, onLogout }) {
               <button onClick={()=>setMonthOffset(m=>m+1)} style={{background:"#fff",border:"1.5px solid #D1C9BE",borderRadius:8,width:34,height:34,cursor:"pointer",fontSize:18}}>›</button>
               {monthOffset!==0&&<button onClick={()=>setMonthOffset(0)} style={{background:"#111827",color:"#fff",border:"none",borderRadius:8,padding:"6px 14px",fontSize:12,cursor:"pointer",fontWeight:600}}>This Month</button>}
             </div>
-            <div style={{display:"flex",gap:5,background:"#fff",borderRadius:10,padding:4,boxShadow:"0 1px 4px rgba(0,0,0,0.07)"}}>
-              <button onClick={()=>setMonthCrewFilter("All")} style={{padding:"6px 14px",borderRadius:7,border:"none",cursor:"pointer",background:monthCrewFilter==="All"?"#111827":"transparent",color:monthCrewFilter==="All"?"#fff":"#6B7280",fontWeight:600,fontSize:12}}>Both</button>
-              {crewKeys.map(crew=>(
-                <button key={crew} onClick={()=>setMonthCrewFilter(crew)} style={{display:"flex",alignItems:"center",padding:"5px 10px",borderRadius:7,border:monthCrewFilter===crew?`2px solid ${C(crew).color}`:"2px solid transparent",cursor:"pointer",background:monthCrewFilter===crew?C(crew).light:"transparent"}}>
-                  <img src={crew==="Topcon Builders"?TOPCON_LOGO:NQ_LOGO} alt={crew} style={{height:20,objectFit:"contain"}}/>
-                </button>
-              ))}
+            <div style={{display:"flex",gap:4,background:"#1F2937",borderRadius:10,padding:4}}>
+              <button onClick={()=>setMonthCrewFilter("All")} style={{padding:"8px 14px",borderRadius:6,border:"none",cursor:"pointer",background:monthCrewFilter==="All"?"#fff":"transparent",color:monthCrewFilter==="All"?"#111827":"#9CA3AF",fontWeight:700,fontSize:13}}>Both</button>
+              {crewKeys.map(crew=>{
+                const cs=C(crew);
+                const sel=monthCrewFilter===crew;
+                return (
+                  <button key={crew} onClick={()=>setMonthCrewFilter(crew)} style={{padding:"8px 14px",borderRadius:6,border:"none",cursor:"pointer",background:cs.color,color:"#fff",fontWeight:700,fontSize:13,letterSpacing:0,opacity:sel||monthCrewFilter==="All"?1:0.55,boxShadow:sel?"0 0 0 2px #fff inset":"none"}}>
+                    {crew}
+                  </button>
+                );
+              })}
             </div>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>
@@ -1242,16 +1246,24 @@ function SitePlanner({ currentUser, onLogout }) {
                   <button onClick={()=>setJobListOffset(o=>o+1)} style={{background:"#fff",border:"1.5px solid #D1C9BE",borderRadius:8,width:34,height:34,cursor:"pointer",fontSize:18}}>›</button>
                   {jobListOffset!==0&&<button onClick={()=>setJobListOffset(0)} style={{background:"#111827",color:"#fff",border:"none",borderRadius:8,padding:"6px 14px",fontSize:12,cursor:"pointer",fontWeight:600}}>Current</button>}
                 </div>
-                <div style={{display:"flex",gap:16}}>
-                  <div style={{textAlign:"center"}}><div style={{fontSize:22,fontWeight:800,color:"#111827"}}>{periodJobs.length}</div><div style={{fontSize:11,color:"#9CA3AF"}}>total</div></div>
-                  {crewKeys.map(crew=>(<div key={crew} style={{textAlign:"center"}}><div style={{fontSize:22,fontWeight:800,color:C(crew).color}}>{periodJobs.filter(j=>j.crew===crew).length}</div><div style={{fontSize:10,color:"#9CA3AF",maxWidth:70,lineHeight:1.2}}>{crew}</div></div>))}
+                <div style={{display:"flex",gap:4,background:"#1F2937",borderRadius:10,padding:4}}>
+                  <button onClick={()=>setJobListCrewFilter("All")} style={{padding:"8px 14px",borderRadius:6,border:"none",cursor:"pointer",background:jobListCrewFilter==="All"?"#fff":"transparent",color:jobListCrewFilter==="All"?"#111827":"#9CA3AF",fontWeight:700,fontSize:13}}>Both</button>
+                  {crewKeys.map(crew=>{
+                    const cs=C(crew);
+                    const sel=jobListCrewFilter===crew;
+                    return (
+                      <button key={crew} onClick={()=>setJobListCrewFilter(crew)} style={{padding:"8px 14px",borderRadius:6,border:"none",cursor:"pointer",background:cs.color,color:"#fff",fontWeight:700,fontSize:13,letterSpacing:0,opacity:sel||jobListCrewFilter==="All"?1:0.55,boxShadow:sel?"0 0 0 2px #fff inset":"none"}}>
+                        {crew}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-              {periodJobs.length===0?(
+              {(jobListCrewFilter==="All"?periodJobs:periodJobs.filter(j=>j.crew===jobListCrewFilter)).length===0?(
                 <div style={{textAlign:"center",padding:"50px 20px",color:"#9CA3AF",background:"#fff",borderRadius:12}}>No jobs this {jobListPeriod}.</div>
               ):(
                 <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                  {periodJobs.map(job=>{
+                  {(jobListCrewFilter==="All"?periodJobs:periodJobs.filter(j=>j.crew===jobListCrewFilter)).map(job=>{
                     const s=C(job.crew);
                     const days=numDays(job);
                     return (
@@ -1388,13 +1400,16 @@ function SitePlanner({ currentUser, onLogout }) {
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
                 <div>
                   <label style={{fontSize:10,fontWeight:700,color:"#9CA3AF",letterSpacing:1,display:"block",marginBottom:5}}>CREW</label>
-                  <div style={{display:"flex",gap:6}}>
-                    {crewKeys.map(cr=>(
-                      <button key={cr} onClick={()=>setLeaveForm(p=>({...p,crew:cr,workerName:""}))}
-                        style={{flex:1,padding:"6px",border:`1.5px solid ${leaveForm.crew===cr?CREW_STYLE[cr].color:"#EDE9E4"}`,borderRadius:8,background:leaveForm.crew===cr?CREW_STYLE[cr].light:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                        <img src={cr==="Topcon Builders"?TOPCON_LOGO:NQ_LOGO} alt="" style={{height:16,objectFit:"contain"}}/>
-                      </button>
-                    ))}
+                  <div style={{display:"flex",gap:4,background:"#1F2937",borderRadius:8,padding:3}}>
+                    {crewKeys.map(cr=>{
+                      const sel=leaveForm.crew===cr;
+                      return (
+                        <button key={cr} onClick={()=>setLeaveForm(p=>({...p,crew:cr,workerName:""}))}
+                          style={{flex:1,padding:"6px 10px",border:"none",borderRadius:6,cursor:"pointer",background:CREW_STYLE[cr].color,color:"#fff",fontSize:12,fontWeight:700,opacity:sel?1:0.55,boxShadow:sel?"0 0 0 2px #fff inset":"none"}}>
+                          {cr}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
                 <div>
@@ -1423,11 +1438,23 @@ function SitePlanner({ currentUser, onLogout }) {
               </div>
               <button onClick={addLeave} style={{marginTop:12,width:"100%",padding:"10px",border:"none",borderRadius:9,background:"#F59E0B",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>+ Add Leave</button>
             </div>
-            {leave.length===0?(
+            <div style={{display:"flex",gap:4,background:"#1F2937",borderRadius:10,padding:4,marginBottom:14}}>
+              <button onClick={()=>setLeaveFilter("All")} style={{padding:"8px 14px",borderRadius:6,border:"none",cursor:"pointer",background:leaveFilter==="All"?"#fff":"transparent",color:leaveFilter==="All"?"#111827":"#9CA3AF",fontWeight:700,fontSize:13}}>Both</button>
+              {crewKeys.map(crew=>{
+                const cs=C(crew);
+                const sel=leaveFilter===crew;
+                return (
+                  <button key={crew} onClick={()=>setLeaveFilter(crew)} style={{padding:"8px 14px",borderRadius:6,border:"none",cursor:"pointer",background:cs.color,color:"#fff",fontWeight:700,fontSize:13,letterSpacing:0,opacity:sel||leaveFilter==="All"?1:0.55,boxShadow:sel?"0 0 0 2px #fff inset":"none"}}>
+                    {crew}
+                  </button>
+                );
+              })}
+            </div>
+            {leave.filter(lv=>leaveFilter==="All"||lv.crew===leaveFilter).length===0?(
               <div style={{textAlign:"center",padding:"40px",color:"#9CA3AF"}}>No leave recorded yet.</div>
             ):(
               <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                {leave.sort((a,b)=>a.startDate.localeCompare(b.startDate)).map(lv=>{
+                {leave.filter(lv=>leaveFilter==="All"||lv.crew===leaveFilter).sort((a,b)=>a.startDate.localeCompare(b.startDate)).map(lv=>{
                   const sd=new Date(lv.startDate),ed=new Date(lv.endDate);
                   const days=Math.round((ed-sd)/86400000)+1;
                   return (
